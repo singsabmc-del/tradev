@@ -543,6 +543,8 @@
   }
 
   // ---------- system settings ----------
+  const THEME_PRESETS = [['#19e37d', 'Green (default)'], ['#2f8cff', 'Blue'], ['#7c5cff', 'Purple'], ['#f0b90b', 'Gold'],
+    ['#ff7a1a', 'Orange'], ['#ff4fa3', 'Pink'], ['#14c8d8', 'Cyan'], ['#e8e8e8', 'Silver']];
   async function viewSettings() {
     main.innerHTML = title('System settings') + '<div id="setBox" class="empty">Loading…</div>';
     const { settings: st, system: sys } = await api('/api/admin/settings');
@@ -555,6 +557,12 @@
     $('#setBox').outerHTML = `<form id="setForm" class="set-grid">
       ${sec('megaphone', 'General', `
         ${fld('site_name', 'Site name', st.site_name, 'maxlength="40"')}
+        <label class="field"><span>Theme colour</span>
+          <div class="color-row"><input type="color" class="color-pick" name="theme_color" value="${esc(st.theme_color || '#19e37d')}" />
+            <input class="input num color-hex" id="colorHex" value="${esc(st.theme_color || '#19e37d')}" maxlength="7" spellcheck="false" />
+            <button type="button" class="btn btn-sm" id="colorReset">Reset</button></div>
+          <div class="swatches">${THEME_PRESETS.map(([c, n]) => `<button type="button" class="swatch" data-c="${c}" title="${n}" style="background:${c}"></button>`).join('')}</div>
+          <small class="dim">Buttons, menus, links and highlights in both apps. Profit / loss colours do not change. Preview is live; save to apply for everyone.</small></label>
         <label class="field"><span>Announcement (shown to customers; leave empty to hide)</span><textarea class="input" name="announcement" rows="3" maxlength="300">${esc(st.announcement)}</textarea></label>
         ${fld('support_contact', 'Support contact (LINE, Telegram, phone or email)', st.support_contact, 'maxlength="120" placeholder="LINE: @tradev"')}`)}
       ${sec('shield-check', 'Access & trading', `
@@ -589,6 +597,20 @@
       <div class="set-actions"><span class="dim small" id="setSaved">${st.updated_at ? `Last saved ${time(st.updated_at)}` : ''}</span>
         <button class="btn btn-green btn-icon" id="setSave">${icon('check')}<span>Save settings</span></button></div>
     </form>`;
+    // Theme colour: live preview; reverted when leaving the page without saving.
+    let savedColor = st.theme_color || '#19e37d';
+    const pick = $('#setForm [name=theme_color]'), hex = $('#colorHex');
+    const preview = (c) => {
+      if (!/^#[0-9a-f]{6}$/i.test(c)) return;
+      pick.value = c.toLowerCase(); hex.value = c.toLowerCase(); THEME.setAccent(c);
+      $$('.swatch').forEach((b) => b.classList.toggle('on', b.dataset.c === c.toLowerCase()));
+    };
+    pick.addEventListener('input', () => preview(pick.value));
+    hex.addEventListener('input', () => preview(hex.value.startsWith('#') ? hex.value : `#${hex.value}`));
+    $$('.swatch').forEach((b) => b.addEventListener('click', () => preview(b.dataset.c)));
+    $('#colorReset').addEventListener('click', () => preview('#19e37d'));
+    preview(savedColor);
+    window.addEventListener('hashchange', function revert() { THEME.setAccent(savedColor); window.removeEventListener('hashchange', revert); });
     $('#setForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target, body = {};
@@ -600,6 +622,7 @@
       try {
         const r = await withBusy($('#setSave'), () => api('/api/admin/settings', { method: 'PUT', body }));
         $('#setSaved').textContent = `Last saved ${time(r.settings.updated_at)}`;
+        savedColor = r.settings.theme_color; THEME.setAccent(savedColor);
         toast('Settings saved');
       } catch (err) { toast(err.message, 'err'); }
     });

@@ -719,3 +719,12 @@ test('withdrawal code: required, set with the account password, checked on every
   assert.equal((await call('/api/me', { token: bob })).data.has_withdraw_code, false);
   assert.equal((await call('/api/notifications', { token: bob })).data.items[0].title, 'Withdrawal code reset');
 });
+
+test('theme colour: admin sets it, everyone reads it, invalid colours refused', async () => {
+  assert.equal((await call('/api/settings')).data.theme_color, '#19e37d');
+  assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { theme_color: 'blue' } })).status, 400);
+  assert.equal((await call('/api/admin/settings', { method: 'PUT', token: alice, body: { theme_color: '#2f8cff' } })).status, 403);
+  assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { theme_color: '#2F8CFF' } })).status, 200);
+  assert.equal((await call('/api/settings')).data.theme_color, '#2f8cff');
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { theme_color: '#19e37d' } });
+});
