@@ -511,6 +511,7 @@
     try {
       const u = await api(`/api/updates?since=${updatesSince - 2000}`);
       updatesSince = u.t;
+      if (u.notify !== noteFlag) checkNotifications(u.notify);
       if (S.user && u.balance !== S.user.balance) { S.user.balance = u.balance; refreshUser().catch(() => {}); }
       let changed = false;
       for (const o of u.orders.slice().reverse()) {
@@ -532,6 +533,49 @@
     } catch { /* offline: try again later */ }
     updatesTimer = setTimeout(pollUpdates, document.hidden ? 15000 : 3000);
   }
+
+  // ---------------- notifications ----------------
+  const NOTE_ICON = { info: 'info', success: 'circle-check', warning: 'triangle-exclamation-point', alert: 'octagon-exclamation-point' };
+  let noteFlag = false, lastNoteId = 0;
+  function setNoteDot(on) {
+    noteFlag = Boolean(on);
+    $$('.bell-dot').forEach((d) => d.classList.toggle('hidden', !noteFlag));
+  }
+  async function checkNotifications(flag) {
+    if (flag && !noteFlag) {
+      try { // show the newest one as a toast, once
+        const { items } = await api('/api/notifications');
+        const n = items.find((x) => x.unread);
+        if (n && n.id > lastNoteId) { lastNoteId = n.id; toast(n.title, n.kind === 'warning' || n.kind === 'alert' ? 'warn' : 'ok'); }
+      } catch { /* ignore */ }
+    }
+    setNoteDot(flag);
+  }
+  function noteRow(n) {
+    return `<div class="note ${n.unread ? 'unread' : ''} k-${esc(n.kind)}">
+      <div class="note-i">${icon(NOTE_ICON[n.kind] || 'info')}</div>
+      <div class="note-b"><div class="note-t">${esc(n.title)}</div>
+        ${n.body ? `<div class="note-x">${esc(n.body)}</div>` : ''}
+        <div class="note-m dim small">${time(n.created_at)}${n.broadcast ? ' · <span>Everyone</span>' : ''}</div></div></div>`;
+  }
+  async function openNotifications() {
+    const ov = document.createElement('div');
+    ov.className = 'overlay'; ov.style.justifyContent = 'flex-end'; ov.style.padding = '0';
+    ov.innerHTML = `<div class="drawer note-drawer"><div class="row between mb"><h2 class="row">${icon('bell')}<span>Notifications</span></h2>
+      <button class="btn btn-icon" data-close aria-label="Close">${icon('x')}</button></div><div class="note-list"><div class="empty">Loading…</div></div></div>`;
+    const close = () => ov.remove();
+    ov.addEventListener('mousedown', (e) => { if (e.target === ov) close(); });
+    $('[data-close]', ov).onclick = close;
+    document.body.appendChild(ov);
+    try {
+      const { items } = await api('/api/notifications');
+      $('.note-list', ov).innerHTML = items.length ? items.map(noteRow).join('')
+        : `<div class="empty">${icon('inbox')}<div>No notifications yet</div></div>`;
+      if (items[0]) lastNoteId = Math.max(lastNoteId, items[0].id);
+      if (items.some((n) => n.unread)) { await api('/api/notifications/read', { method: 'POST' }); setNoteDot(false); }
+    } catch (e) { $('.note-list', ov).innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }
+  $$('[data-notif-btn]').forEach((b) => b.addEventListener('click', openNotifications));
 
   // ---------------- boot ----------------
   async function boot() {
@@ -556,6 +600,7 @@
       sessionStorage.setItem('tv_bank_prompted', '1');
       goBank('Add your bank account to start trading');
     }
+    setNoteDot(S.user.notify);
     pollUpdates();
     setInterval(loadSettings, 60_000);
   }

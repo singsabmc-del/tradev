@@ -513,3 +513,56 @@ test('system settings: admin-only, validated, and enforced on registration, trad
   // restore defaults for any later tests
   await call('/api/admin/settings', { method: 'PUT', token: admin, body: { ...before.settings, updated_at: undefined, updated_by: undefined } });
 });
+
+test('notifications: admin sends to one customer or everyone; auto notices for wallet and balance changes', async () => {
+  assert.equal((await call('/api/admin/notifications', { method: 'POST', token: alice, body: { target: 'all', title: 'x' } })).status, 403);
+  assert.equal((await call('/api/admin/notifications', { method: 'POST', token: admin, body: { target: 'all', title: '' } })).status, 400);
+  assert.equal((await call('/api/admin/notifications', { method: 'POST', token: admin, body: { target: 'user', email: 'nobody@x.com', title: 'Hi' } })).status, 404);
+
+  await call('/api/notifications/read', { method: 'POST', token: alice });
+  assert.equal((await call('/api/me', { token: alice })).data.notify, false);
+
+  const me = (await call('/api/me', { token: alice })).data;
+  const one = await call('/api/admin/notifications', { method: 'POST', token: admin, body: { target: 'user', email: me.email, title: 'Hello Alice', body: 'Your account was verified, (thanks)!', kind: 'success' } });
+  assert.equal(one.status, 200);
+  const all = await call('/api/admin/notifications', { method: 'POST', token: admin, body: { target: 'all', title: 'New market listed', body: 'SOL is live' } });
+  assert.equal(all.status, 200);
+
+  assert.equal((await call('/api/me', { token: alice })).data.notify, true);
+  assert.equal((await call('/api/updates', { token: alice })).data.notify, true);
+  const list = (await call('/api/notifications', { token: alice })).data;
+  assert.equal(list.unread >= 2, true);
+  assert.equal(list.items[0].title, 'New market listed');
+  assert.equal(list.items[0].broadcast, true);
+  assert.equal(list.items[1].body, 'Your account was verified, (thanks)!', 'body keeps punctuation');
+
+  // bob sees the broadcast but not Alice's message
+  const bob = (await call('/api/auth/login', { method: 'POST', body: { email: 'bob@test.io', password: 'bobpass12' } })).data.token;
+  const bobs = (await call('/api/notifications', { token: bob })).data.items.map((n) => n.title);
+  assert.ok(bobs.includes('New market listed'));
+  assert.ok(!bobs.includes('Hello Alice'));
+
+  await call('/api/notifications/read', { method: 'POST', token: alice });
+  assert.equal((await call('/api/me', { token: alice })).data.notify, false);
+  assert.equal((await call('/api/notifications', { token: alice })).data.unread, 0);
+
+  // automatic: balance adjustment and deposit approval
+  await call(`/api/admin/users/${me.id}/adjust`, { method: 'POST', token: admin, body: { amount: 12.5, note: 'Promo' } });
+  const d = (await call('/api/wallet/deposit', { method: 'POST', token: alice, body: { amount: 40 } })).data;
+  await call(`/api/admin/transactions/${d.id}/approve`, { method: 'POST', token: admin });
+  const auto = (await call('/api/notifications', { token: alice })).data;
+  assert.equal(auto.items[0].title, 'Deposit approved');
+  assert.match(auto.items[0].body, /40\.00 USDT/);
+  assert.equal(auto.items[1].title, 'Balance adjusted');
+  assert.match(auto.items[1].body, /credited 12\.50 USDT\. Note: Promo/);
+  // adjustment without notifying
+  await call(`/api/admin/users/${me.id}/adjust`, { method: 'POST', token: admin, body: { amount: -12.5, notify: false } });
+  assert.equal((await call('/api/notifications', { token: alice })).data.items[0].title, 'Deposit approved');
+
+  // admin list and delete
+  const sent = (await call('/api/admin/notifications', { token: admin })).data;
+  const mine = sent.find((n) => n.title === 'Hello Alice');
+  assert.equal(mine.user_email, me.email);
+  assert.equal((await call(`/api/admin/notifications/${all.data.id}`, { method: 'DELETE', token: admin })).status, 200);
+  assert.ok(!(await call('/api/notifications', { token: bob })).data.items.some((n) => n.title === 'New market listed'));
+});

@@ -25,7 +25,7 @@
   window.addEventListener('tv:logout', () => location.reload());
 
   // ---------- nav ----------
-  const NAV = { dashboard: ['dashboard', 'Dashboard'], markets: ['markets', 'Markets'], customers: ['users', 'Customers'], transactions: ['tx', 'Transactions'], orders: ['orders', 'Orders'], settings: ['settings', 'Settings'] };
+  const NAV = { dashboard: ['dashboard', 'Dashboard'], markets: ['markets', 'Markets'], customers: ['users', 'Customers'], transactions: ['tx', 'Transactions'], orders: ['orders', 'Orders'], notifications: ['notify', 'Notifications'], settings: ['settings', 'Settings'] };
   for (const [v, [icon, label]] of Object.entries(NAV)) {
     const b = $(`[data-view="${v}"]`);
     b.innerHTML = `${ICONS[icon]}<span>${label}</span><span class="badge pending hidden" data-badge="${v}"></span>`;
@@ -39,7 +39,7 @@
     S.view = NAV[v] ? v : 'dashboard';
     $$('[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === S.view));
     clearInterval(refreshTimer);
-    ({ dashboard: viewDashboard, markets: viewMarkets, customers: viewCustomers, transactions: viewTransactions, orders: viewOrders, settings: viewSettings })[S.view]();
+    ({ dashboard: viewDashboard, markets: viewMarkets, customers: viewCustomers, transactions: viewTransactions, orders: viewOrders, notifications: viewNotifications, settings: viewSettings })[S.view]();
   }
 
   const title = (t, right = '') => `<h1 class="page-title">${t}<span style="margin-left:auto" class="row">${right}</span></h1>`;
@@ -335,7 +335,9 @@
           <p class="hint" style="margin:0 0 12px">Positive to credit, negative to debit. Recorded as an "adjustment" transaction.</p>
           <label class="field"><span>Amount (USDT)</span><input class="input num" name="amount" placeholder="e.g. 500 or -200" required /></label>
           <label class="field"><span>Reason</span><input class="input" name="note" placeholder="Bonus, correction, …" maxlength="80" /></label>
-          <button class="btn btn-green" id="bSave">Apply adjustment</button></form>
+          <label class="check mb"><input type="checkbox" name="notify" checked /> <span>Notify the customer</span></label>
+          <div class="row gap"><button class="btn btn-green" id="bSave">Apply adjustment</button>
+          <button type="button" class="btn btn-icon" id="bMsg">${icon('send')}<span>Send message</span></button></div></form>
       </div>
       <form class="card card-pad mt" id="bkf"><div class="row between"><h3 class="lbl" style="margin:0">${icon('landmark')}<span>Bank account</span></h3>
           ${u.bank ? `<span class="dim small">Updated ${time(u.bank.updated_at)}</span>` : '<span class="badge lose">No bank account</span>'}</div>
@@ -372,9 +374,10 @@
       try { await api(`/api/admin/users/${id}`, { method: 'PATCH', body: { bank: null } }); toast('Bank account removed'); openCustomer(id); refreshList(); }
       catch (err) { toast(err.message, 'err'); }
     });
+    $('#bMsg').onclick = () => { S.notifyTo = u.email; closeDrawer(); if (location.hash === '#notifications') route(); else location.hash = 'notifications'; };
     $('#bf').addEventListener('submit', async (e) => {
       e.preventDefault();
-      try { await withBusy($('#bSave'), () => api(`/api/admin/users/${id}/adjust`, { method: 'POST', body: Object.fromEntries(new FormData(e.target)) })); toast('Balance adjusted'); openCustomer(id); refreshList(); }
+      try { await withBusy($('#bSave'), () => api(`/api/admin/users/${id}/adjust`, { method: 'POST', body: { ...Object.fromEntries(new FormData(e.target)), notify: e.target.notify.checked } })); toast('Balance adjusted'); openCustomer(id); refreshList(); }
       catch (err) { toast(err.message, 'err'); }
     });
   }
@@ -424,6 +427,55 @@
     for (const id of ['oStatus', 'oResult', 'oSymbol', 'oSide']) $(`#${id}`).addEventListener('change', load);
     await load();
     refreshTimer = setInterval(() => { if (!$('.overlay')) load().catch(() => {}); }, 15_000);
+  }
+
+  // ---------- notifications ----------
+  const KIND_OPTS = [['info', 'Information'], ['success', 'Good news'], ['warning', 'Warning'], ['alert', 'Important']];
+  const KIND_ICON = { info: 'info', success: 'circle-check', warning: 'triangle-exclamation-point', alert: 'octagon-exclamation-point' };
+  async function viewNotifications() {
+    const pre = S.notifyTo || ''; S.notifyTo = null;
+    main.innerHTML = title('Notifications') + `<div class="note-admin">
+      <form class="card card-pad" id="nf"><h3 class="lbl">${icon('send')}<span>Send a notification</span></h3>
+        <div class="seg full mb" id="nTarget"><button type="button" data-t="user" class="${pre ? 'active' : ''}">One customer</button><button type="button" data-t="all" class="${pre ? '' : 'active'}">All customers</button></div>
+        <label class="field ${pre ? '' : 'hidden'}" id="nEmailF"><span>Customer email</span><input class="input" name="email" list="nUsers" value="${esc(pre)}" placeholder="customer@example.com" autocomplete="off" /></label>
+        <datalist id="nUsers"></datalist>
+        <label class="field"><span>Type</span><select class="input" name="kind">${opts(KIND_OPTS, 'info')}</select></label>
+        <label class="field"><span>Title</span><input class="input" name="title" maxlength="120" required /></label>
+        <label class="field"><span>Message</span><textarea class="input" name="body" rows="5" maxlength="2000"></textarea></label>
+        <p class="hint">Customers see a red dot on the bell and a pop-up the next time the app checks (within a few seconds). Deposits, withdrawals and balance adjustments are notified automatically.</p>
+        <button class="btn btn-green btn-icon" id="nSend">${icon('send')}<span>Send</span></button>
+      </form>
+      <section class="card card-pad"><h3 class="lbl">${icon('bell')}<span>Sent</span></h3><div id="nList" class="note-list"><div class="empty">Loading…</div></div></section></div>`;
+    let target = pre ? 'user' : 'all';
+    $$('#nTarget button').forEach((b) => b.onclick = () => {
+      target = b.dataset.t;
+      $$('#nTarget button').forEach((x) => x.classList.toggle('active', x === b));
+      $('#nEmailF').classList.toggle('hidden', target !== 'user');
+    });
+    api('/api/admin/users?role=customer').then((us) => { $('#nUsers').innerHTML = us.map((u) => `<option value="${esc(u.email)}">${esc(u.name || '')}</option>`).join(''); }).catch(() => {});
+    $('#nf').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = { ...Object.fromEntries(new FormData(e.target)), target };
+      if (target === 'all' && !(await confirmBox('Send to all customers?', `"${body.title}" will be shown to every customer.`, { okText: 'Send' }))) return;
+      try {
+        await withBusy($('#nSend'), () => api('/api/admin/notifications', { method: 'POST', body }));
+        toast('Notification sent'); e.target.title.value = ''; e.target.body.value = ''; loadSent();
+      } catch (err) { toast(err.message, 'err'); }
+    });
+    async function loadSent() {
+      const rows = await api('/api/admin/notifications');
+      $('#nList').innerHTML = rows.length ? rows.map((n) => `<div class="note k-${esc(n.kind)}">
+        <div class="note-i">${icon(KIND_ICON[n.kind] || 'info')}</div>
+        <div class="note-b"><div class="note-t">${esc(n.title)}</div>${n.body ? `<div class="note-x">${esc(n.body)}</div>` : ''}
+          <div class="note-m dim small">${time(n.created_at)} · ${n.user_id ? `<span>To</span> ${esc(n.user_email || '#' + n.user_id)}` : '<span>All customers</span>'}${n.created_by ? '' : ' · <span>automatic</span>'}</div></div>
+        <button class="btn btn-sm btn-icon btn-ghost-red" data-del="${n.id}" title="Delete">${icon('trash')}</button></div>`).join('')
+        : `<div class="empty">${icon('inbox')}<div>Nothing sent yet</div></div>`;
+      $$('[data-del]').forEach((b) => b.onclick = async () => {
+        if (!(await confirmBox('Delete notification?', 'Customers will no longer see it.', { okText: 'Delete', danger: true }))) return;
+        try { await api(`/api/admin/notifications/${b.dataset.del}`, { method: 'DELETE' }); toast('Deleted'); loadSent(); } catch (err) { toast(err.message, 'err'); }
+      });
+    }
+    loadSent();
   }
 
   // ---------- system settings ----------

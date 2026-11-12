@@ -296,3 +296,27 @@ body.lang-th .badge { text-transform: none; }
   .nav-item .badge { display: none; }
   .main { padding: 14px 12px 90px; }
 }
+
+/* notifications */
+.bell-btn { position: relative; width: 34px; height: 32px; padding: 0; justify-content: center; flex: none; }
+.bell-btn svg { width: 17px; height: 17px; }
+.bell-dot { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 2px var(--panel-solid); }
+.note-drawer { width: min(440px, 100%); }
+.note-drawer h2 { margin: 0; font-size: 19px; }
+.note-list { display: grid; gap: 10px; }
+.note { display: flex; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel2); }
+.note.unread { border-color: var(--line2); background: var(--hover); box-shadow: inset 3px 0 0 var(--green); }
+.note-i svg { width: 20px; height: 20px; }
+.note.k-info .note-i { color: var(--blue); } .note.k-success .note-i { color: var(--green); }
+.note.k-warning .note-i { color: var(--amber); } .note.k-alert .note-i { color: var(--red); }
+.note-b { min-width: 0; flex: 1; }
+.note-t { font-weight: 600; }
+.note-x { margin-top: 4px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-m { margin-top: 6px; }
+.lang-nav .theme-btn, .lang-nav .bell-btn { width: 32px; }
+.note-admin { display: grid; grid-template-columns: minmax(320px, 440px) 1fr; gap: 18px; align-items: start; }
+.note-admin .note-list { max-height: 70vh; overflow: auto; }
+.note-admin .note .btn { align-self: flex-start; }
+.check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); }
+.check input { accent-color: var(--green); width: 16px; height: 16px; }
+@media (max-width: 900px) { .note-admin { grid-template-columns: 1fr; } }
