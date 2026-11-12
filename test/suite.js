@@ -653,3 +653,33 @@ test('customer information: self-service profile, password change, phone login, 
   assert.equal((await call('/api/admin/users', { method: 'POST', token: alice, body: { name: 'x' } })).status, 403);
   await call('/api/admin/settings', { method: 'PUT', token: admin, body: { registration_open: true } });
 });
+
+test('admin deposits and withdraws on behalf of a customer', async () => {
+  const me = (await call('/api/me', { token: alice })).data;
+  const start = me.balance;
+  assert.equal((await call(`/api/admin/users/${me.id}/deposit`, { method: 'POST', token: alice, body: { amount: 10 } })).status, 403);
+  assert.equal((await call(`/api/admin/users/${me.id}/deposit`, { method: 'POST', token: admin, body: { amount: -5 } })).status, 400);
+
+  const d = await call(`/api/admin/users/${me.id}/deposit`, { method: 'POST', token: admin, body: { amount: 250, note: 'Cash at branch' } });
+  assert.equal(d.status, 200);
+  assert.equal(d.data.transaction.type, 'deposit');
+  assert.equal(d.data.transaction.status, 'completed');
+  assert.equal(d.data.user.balance, start + 250);
+
+  const w = await call(`/api/admin/users/${me.id}/withdraw`, { method: 'POST', token: admin, body: { amount: 100 } });
+  assert.equal(w.data.transaction.type, 'withdrawal');
+  assert.equal(w.data.transaction.amount, -100);
+  assert.equal(w.data.transaction.bank.account_number, '1234567890', 'paid to the customer bank on file');
+  assert.equal((await call('/api/me', { token: alice })).data.balance, start + 150);
+  assert.equal((await call(`/api/admin/users/${me.id}/withdraw`, { method: 'POST', token: admin, body: { amount: 1e9 } })).status, 400, 'cannot withdraw more than the balance');
+
+  const notes = (await call('/api/notifications', { token: alice })).data.items;
+  assert.equal(notes[0].title, 'Withdrawal completed');
+  assert.match(notes[1].body, /250\.00 USDT has been deposited.*Cash at branch/);
+  const txs = (await call('/api/transactions', { token: alice })).data;
+  assert.equal(txs[0].type, 'withdrawal');
+
+  const demo = (await call('/api/auth/demo', { method: 'POST' })).data.user;
+  assert.equal((await call(`/api/admin/users/${demo.id}/deposit`, { method: 'POST', token: admin, body: { amount: 10 } })).status, 400, 'no real money on demo accounts');
+  await call(`/api/admin/users/${me.id}/withdraw`, { method: 'POST', token: admin, body: { amount: 150, notify: false } });
+});

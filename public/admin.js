@@ -336,12 +336,13 @@
           <label class="field"><span>Role</span><select class="input" name="role">${opts([['customer', 'Customer'], ['admin', 'Admin']], u.role)}</select></label></div>
           <label class="field"><span>New password (leave blank to keep)</span><input class="input" name="password" type="text" autocomplete="off" /></label>
           <button class="btn btn-green" id="pSave">Save profile</button></form>
-        <form class="card card-pad" id="bf"><h3>Adjust balance</h3>
-          <p class="hint" style="margin:0 0 12px">Positive to credit, negative to debit. Recorded as an "adjustment" transaction.</p>
-          <label class="field"><span>Amount (USDT)</span><input class="input num" name="amount" placeholder="e.g. 500 or -200" required /></label>
-          <label class="field"><span>Reason</span><input class="input" name="note" placeholder="Bonus, correction, …" maxlength="80" /></label>
+        <form class="card card-pad" id="bf"><h3>Balance</h3>
+          <div class="seg full mb" id="bMode">${u.demo ? '' : '<button type="button" data-m="deposit" class="active">Deposit</button><button type="button" data-m="withdraw">Withdraw</button>'}<button type="button" data-m="adjust" ${u.demo ? 'class="active"' : ''}>Adjust</button></div>
+          <p class="hint" style="margin:0 0 12px" id="bHint"></p>
+          <label class="field"><span>Amount (USDT)</span><input class="input num" name="amount" inputmode="decimal" required /></label>
+          <label class="field"><span>Note / reference</span><input class="input" name="note" maxlength="80" /></label>
           <label class="check mb"><input type="checkbox" name="notify" checked /> <span>Notify the customer</span></label>
-          <div class="row gap"><button class="btn btn-green" id="bSave">Apply adjustment</button>
+          <div class="row gap"><button class="btn btn-green" id="bSave">Apply</button>
           <button type="button" class="btn btn-icon" id="bMsg">${icon('send')}<span>Send message</span></button></div></form>
       </div>
       <form class="card card-pad mt" id="bkf"><div class="row between"><h3 class="lbl" style="margin:0">${icon('landmark')}<span>Bank account</span></h3>
@@ -380,9 +381,26 @@
       catch (err) { toast(err.message, 'err'); }
     });
     $('#bMsg').onclick = () => { S.notifyTo = u.email; closeDrawer(); if (location.hash === '#notifications') route(); else location.hash = 'notifications'; };
+    const BMODES = {
+      deposit: ['Money the customer paid you (cash, bank transfer). Recorded as a completed deposit.', 'Deposit', 'Deposit recorded'],
+      withdraw: ['Money you paid out to the customer. Recorded as a completed withdrawal to their bank account.', 'Withdraw', 'Withdrawal recorded'],
+      adjust: ['Corrections and bonuses: positive to credit, negative to debit. Recorded as an "adjustment".', 'Apply adjustment', 'Balance adjusted'],
+    };
+    let bMode = u.demo ? 'adjust' : 'deposit';
+    const setBMode = (m) => {
+      bMode = m;
+      $$('#bMode button').forEach((b) => b.classList.toggle('active', b.dataset.m === m));
+      $('#bHint').textContent = BMODES[m][0];
+      $('#bSave').textContent = BMODES[m][1];
+      $('#bf [name=amount]').placeholder = m === 'adjust' ? 'e.g. 500 or -200' : 'e.g. 500';
+    };
+    $$('#bMode button').forEach((b) => b.addEventListener('click', () => setBMode(b.dataset.m)));
+    setBMode(bMode);
     $('#bf').addEventListener('submit', async (e) => {
       e.preventDefault();
-      try { await withBusy($('#bSave'), () => api(`/api/admin/users/${id}/adjust`, { method: 'POST', body: { ...Object.fromEntries(new FormData(e.target)), notify: e.target.notify.checked } })); toast('Balance adjusted'); openCustomer(id); refreshList(); }
+      const body = { ...Object.fromEntries(new FormData(e.target)), notify: e.target.notify.checked };
+      if (bMode !== 'adjust' && !(await confirmBox(`${bMode === 'deposit' ? 'Deposit' : 'Withdraw'} ${fmt(Number(body.amount))} USDT?`, `${bMode === 'deposit' ? 'Credited to' : 'Taken from'} ${u.name || u.email}'s balance and recorded as a completed ${bMode === 'deposit' ? 'deposit' : 'withdrawal'}.`, { okText: 'Confirm' }))) return;
+      try { await withBusy($('#bSave'), () => api(`/api/admin/users/${id}/${bMode}`, { method: 'POST', body })); toast(BMODES[bMode][2]); openCustomer(id); refreshList(); }
       catch (err) { toast(err.message, 'err'); }
     });
   }

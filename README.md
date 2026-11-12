@@ -24,7 +24,7 @@ back office to manage markets, customers, transactions and win/lose order histor
 **Admin panel** (`/admin`)
 - **Dashboard:** customers, balances, open positions, live unrealized PnL, win/lose & win rate, fees, house result, volume, per-market breakdown, Google Sheets sync status
 - **Markets:** create markets, edit price / volatility / trend (drift) / max leverage / fees / min margin, enable or disable
-- **Customers:** search by name, email or phone; full profile (phone, date of birth, country, address, internal note) & stats; edit, reset password, suspend, credit/debit balance (customer is notified), bank account, every order and transaction; Real / Demo filter
+- **Customers:** search by name, email or phone; full profile (phone, date of birth, country, address, internal note) & stats; edit, reset password, suspend, **deposit / withdraw on the customer's behalf**, credit/debit adjustments (customer is notified), bank account, every order and transaction; Real / Demo filter
 - **Notifications:** send a message to one customer or everyone; deposits, withdrawals and balance adjustments notify automatically
 - **Settings:** site name, announcement, support contact, registration / trading / demo switches, bank-account requirement, deposit & withdrawal limits, company deposit account
 - **Transactions:** all money movements; approve or reject pending deposits and withdrawals
