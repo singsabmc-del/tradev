@@ -188,7 +188,7 @@
               <div><span>Total cost</span><b class="num" id="sCost">—</b></div>
             </div>
             <div class="notice warn hidden" id="tradingPaused"><i data-icon="info"></i><span>Trading is paused</span></div>
-            <a href="#wallet" class="bank-needed hidden" id="bankNeeded"><i data-icon="landmark"></i><span>Add a bank account to start trading</span></a>
+            <a href="#account/bank" class="bank-needed hidden" id="bankNeeded"><i data-icon="landmark"></i><span>Add a bank account to start trading</span></a>
             <button class="btn btn-green btn-block btn-icon" id="submitOrder"><i data-icon="trending-up"></i><span>Buy / Long</span></button>
             <p class="dim small center" id="orderHint"></p>
           </div>
@@ -213,7 +213,6 @@
         <h1 class="page-title">Wallet</h1>
         <div class="wallet-grid">
           <div class="wallet-left">
-          <div class="card card-pad bank-card" id="bankCard"></div>
           <div class="card card-pad demo-only demo-wallet">
             <h3 class="lbl"><i data-icon="flask-conical"></i>Demo account</h3>
             <p class="muted small">Your balance is virtual money for practice. Deposits and withdrawals are only available on a real account.</p>
@@ -223,6 +222,7 @@
           <div class="card card-pad">
             <h3 class="lbl"><i data-icon="wallet"></i>Balance</h3>
             <div class="big-price num" id="wBal">—</div>
+            <a href="#account/bank" class="wallet-bank real-only" id="wBank"></a>
             <p class="muted small real-only">Deposits are credited after an administrator approves them. Withdrawals are held from your balance until processed.</p>
             <div class="seg full mt real-only" id="wSeg"><button data-w="deposit" class="active"><i data-icon="arrow-down-to-line"></i>Deposit</button><button data-w="withdraw"><i data-icon="arrow-up-from-line"></i>Withdraw</button></div>
             <div id="walletInfo" class="mt real-only"></div>
@@ -239,11 +239,18 @@
         </div>
       </section>
       <!-- ACCOUNT -->
+      <section id="view-account" class="view       <!-- ACCOUNT: three pages with their own menu -->
       <section id="view-account" class="view hidden">
         <h1 class="page-title">Account</h1>
-        <div class="seg full acct-switch real-only" id="acctSwitch"><button data-as="profile" class="active"><i data-icon="user-round"></i>Profile</button><button data-as="security"><i data-icon="shield-check"></i>Security</button></div>
-        <div class="account-grid as-profile" id="accountGrid">
-          <form class="card card-pad" id="profForm">
+        <div class="acct-layout">
+          <nav class="card acct-nav" id="acctNav">
+            <a href="#account/profile" data-ap="profile"><i data-icon="user-round"></i><span class="acct-nav-txt"><b>Profile</b><small>Name, phone, address</small></span><i data-icon="chevron-right" class="acct-chev"></i></a>
+            <a href="#account/security" data-ap="security"><i data-icon="shield-check"></i><span class="acct-nav-txt"><b>Security</b><small>Withdrawal code, password</small></span><span class="acct-dot hidden" id="apSecDot"></span><i data-icon="chevron-right" class="acct-chev"></i></a>
+            <a href="#account/bank" data-ap="bank"><i data-icon="landmark"></i><span class="acct-nav-txt"><b>Bank account</b><small>Where withdrawals are paid</small></span><span class="acct-dot hidden" id="apBankDot"></span><i data-icon="chevron-right" class="acct-chev"></i></a>
+          </nav>
+          <div class="acct-pages">
+            <div class="acct-page" data-page="profile">
+<form class="card card-pad" id="profForm">
             <h3 class="lbl"><i data-icon="user-round"></i>Personal information</h3>
             <label class="field"><span>Full name</span><input class="input" name="name" maxlength="80" required autocomplete="name" /></label>
             <div class="grid2">
@@ -258,8 +265,11 @@
             <p class="dim small real-only">You can log in with your email or phone number. To change your email, contact support.</p>
             <button class="btn btn-green" id="profSave">Save changes</button>
           </form>
-          <div class="account-side">
-          <form class="card card-pad real-only" id="wcForm">
+            </div>
+            <div class="acct-page hidden" data-page="security">
+              <div class="card card-pad demo-only"><h3 class="lbl"><i data-icon="flask-conical"></i>Demo account</h3><p class="muted small">Demo accounts have no password or withdrawal code. Open a real account to use them.</p></div>
+              <div class="acct-stack">
+<form class="card card-pad real-only" id="wcForm">
             <h3 class="lbl"><i data-icon="shield-check"></i>Withdrawal code</h3>
             <p class="muted small" id="wcStatus"></p>
             <label class="field"><span>New 6-digit code</span><input class="input num code-input" name="code" type="password" inputmode="numeric" maxlength="6" pattern="\d{6}" required autocomplete="new-password" placeholder="••••••" /></label>
@@ -267,13 +277,19 @@
             <label class="field"><span>Account password (to confirm it's you)</span><input class="input" name="password" type="password" required autocomplete="current-password" /></label>
             <button class="btn btn-green" id="wcSave">Save code</button>
           </form>
-          <form class="card card-pad real-only" id="pwForm">
+<form class="card card-pad real-only" id="pwForm">
             <h3 class="lbl"><i data-icon="lock"></i>Change password</h3>
             <label class="field"><span>Current password</span><input class="input" name="current_password" type="password" required autocomplete="current-password" /></label>
             <label class="field"><span>New password</span><input class="input" name="new_password" type="password" minlength="8" required autocomplete="new-password" /></label>
             <label class="field"><span>Repeat new password</span><input class="input" name="repeat" type="password" minlength="8" required autocomplete="new-password" /></label>
             <button class="btn btn-green" id="pwSave">Update password</button>
           </form>
+              </div>
+            </div>
+            <div class="acct-page hidden" data-page="bank">
+              <div class="card card-pad demo-only"><h3 class="lbl"><i data-icon="flask-conical"></i>Demo account</h3><p class="muted small">Demo accounts cannot deposit or withdraw, so no bank account is needed.</p></div>
+              <div class="card card-pad bank-card real-only" id="bankCard"></div>
+            </div>
           </div>
         </div>
       </section>

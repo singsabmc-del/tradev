@@ -139,6 +139,10 @@ const I18N = (() => {
     'Corrections and bonuses: positive to credit, negative to debit. Recorded as an "adjustment".': 'แก้ไขยอดและโบนัส: ค่าบวกเพื่อเพิ่ม ค่าลบเพื่อหัก บันทึกเป็น "การปรับยอด"',
     'Deposit received': 'ได้รับเงินฝากแล้ว', 'Demo accounts use virtual funds: use Reset or Adjust instead': 'บัญชีเดโมใช้เงินเสมือน: ใช้การรีเซ็ตหรือปรับยอดแทน',
     'Chart': 'กราฟ', 'Order': 'ส่งคำสั่ง', 'Profile': 'โปรไฟล์', 'Security': 'ความปลอดภัย',
+    'Bank account': 'บัญชีธนาคาร', 'Name, phone, address': 'ชื่อ เบอร์โทร ที่อยู่', 'Withdrawal code, password': 'รหัสถอนเงิน รหัสผ่าน',
+    'Where withdrawals are paid': 'บัญชีรับเงินถอน', 'Manage': 'จัดการ', 'Add a bank account': 'เพิ่มบัญชีธนาคาร',
+    'Demo accounts have no password or withdrawal code. Open a real account to use them.': 'บัญชีเดโมไม่มีรหัสผ่านหรือรหัสถอนเงิน เปิดบัญชีจริงเพื่อใช้งาน',
+    'Demo accounts cannot deposit or withdraw, so no bank account is needed.': 'บัญชีเดโมฝากหรือถอนเงินไม่ได้ จึงไม่ต้องใช้บัญชีธนาคาร',
     // home
     'Home': 'หน้าแรก', 'Welcome back': 'ยินดีต้อนรับกลับ', 'Good morning': 'สวัสดีตอนเช้า', 'Good afternoon': 'สวัสดีตอนบ่าย', 'Good evening': 'สวัสดีตอนเย็น',
     'Search markets': 'ค้นหาตลาด', 'Ranking list': 'อันดับ', 'All markets': 'ตลาดทั้งหมด', 'Gainers': 'ขึ้นมากสุด', 'Losers': 'ลงมากสุด', '24h Vol': 'วอลุ่ม 24 ชม.',

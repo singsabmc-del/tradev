@@ -81,8 +81,9 @@
   }
   $('#adminLink').innerHTML = `${ICONS.admin}<span>Admin</span>`;
   function showView() {
-    const v = (location.hash || '#home').slice(1);
+    const [v, sub] = (location.hash || '#home').slice(1).split('/');
     S.view = NAV[v] ? v : 'home';
+    if (S.view === 'account') showAccountPage(sub);
     $$('.view').forEach((s) => s.classList.toggle('hidden', s.id !== `view-${S.view}`));
     $$('[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === S.view));
     if (S.view === 'markets') renderMarkets();
@@ -139,7 +140,7 @@
         ${b.instructions ? `<p class="muted small">${esc(b.instructions)}</p>` : ''}</div>`;
     } else if (!dep && S.user && S.user.bank) html = `<p class="muted small">${icon('landmark')} <span>Paid to</span> ${esc(S.user.bank.bank_name)} · ${esc(S.user.bank.account_number)}</p>`;
     const needCode = !dep && enabled && S.user && !S.user.has_withdraw_code && st.require_withdrawal_code !== false;
-    if (needCode) html += `<a href="#account" class="bank-needed">${icon('shield-check')}<span>Set a withdrawal code on the Account page first</span></a>`;
+    if (needCode) html += `<a href="#account/security" class="bank-needed">${icon('shield-check')}<span>Set a withdrawal code on the Account page first</span></a>`;
     $('#wCodeField').classList.toggle('hidden', dep || !(S.user && S.user.has_withdraw_code));
     $('#wCode').required = !dep && Boolean(S.user && S.user.has_withdraw_code);
     $('#walletInfo').innerHTML = html + (limits && enabled ? `<p class="dim small">${limits} USDT</p>` : '');
@@ -157,6 +158,11 @@
     document.body.classList.toggle('is-demo', Boolean(S.user.demo));
     $('#bankNeeded').classList.toggle('hidden', !needBank());
     renderBank();
+    const b = S.user.bank;
+    $('#wBank').innerHTML = b ? `${icon('landmark')}<span>${esc(b.bank_name)} · ${esc(b.account_number)}</span><span class="dim">Manage</span>${icon('chevron-right')}`
+      : `${icon('landmark')}<span>Add a bank account</span>${icon('chevron-right')}`;
+    $('#apBankDot').classList.toggle('hidden', !needBank());
+    $('#apSecDot').classList.toggle('hidden', Boolean(S.user.demo || S.user.has_withdraw_code || S.settings.require_withdrawal_code === false));
     updateSummary();
   }
 
@@ -165,7 +171,7 @@
   function goBank(msg) {
     if (msg) toast(msg, 'warn');
     bankEditing = true;
-    location.hash = 'wallet';
+    location.hash = 'account/bank';
     renderBank();
     setTimeout(() => { const f = $('#bankCard input'); if (f) f.focus(); }, 50);
   }
@@ -379,11 +385,14 @@
   let initialSection = 'chart';
   try { initialSection = sessionStorage.getItem('tv_trade_section') || 'chart'; } catch {}
   setTradeSection(initialSection);
-  // Account: Profile / Security
-  $$('#acctSwitch button').forEach((b) => b.addEventListener('click', () => {
-    $$('#acctSwitch button').forEach((x) => x.classList.toggle('active', x === b));
-    $('#accountGrid').className = `account-grid as-${b.dataset.as}`;
-  }));
+  // Account: Profile / Security / Bank account, each with its own address (#account/security ...)
+  const ACCT_PAGES = ['profile', 'security', 'bank'];
+  function showAccountPage(sub) {
+    const page = ACCT_PAGES.includes(sub) ? sub : 'profile';
+    $$('.acct-page').forEach((el) => el.classList.toggle('hidden', el.dataset.page !== page));
+    $$('#acctNav [data-ap]').forEach((a) => a.classList.toggle('active', a.dataset.ap === page));
+    $('#view-account').dataset.page = page;
+  }
 
   // ---------------- bottom tables ----------------
   $$('#bottomTabs .tab').forEach((b) => b.addEventListener('click', async () => {
@@ -543,7 +552,7 @@
       renderWallet();
     } catch (err) {
       if (err.code === 'BANK_REQUIRED') goBank(err.message);
-      else if (err.code === 'WITHDRAW_CODE_REQUIRED') { toast(err.message, 'warn'); location.hash = 'account'; }
+      else if (err.code === 'WITHDRAW_CODE_REQUIRED') { toast(err.message, 'warn'); location.hash = 'account/security'; }
       else { toast(err.message, 'err'); if (err.code === 'WITHDRAW_CODE_WRONG') { $('#wCode').value = ''; $('#wCode').focus(); } }
     }
   });
@@ -661,7 +670,7 @@
     if (st.announcement) list.push({ k: 'info', ic: 'megaphone', t: 'Announcement', d: st.announcement });
     if (u.demo) list.push({ k: 'demo', ic: 'flask-conical', t: 'Practice with virtual funds', d: 'Nothing here is real money. Open a real account when you are ready.', go: () => $('#demoReal').click() });
     else if (!u.has_bank && st.require_bank_account !== false) list.push({ k: 'warn', ic: 'landmark', t: 'Add your bank account', d: 'Needed before you can deposit, withdraw or trade.', go: () => goBank() });
-    else if (st.require_withdrawal_code !== false && !u.has_withdraw_code) list.push({ k: 'warn', ic: 'shield-check', t: 'Protect your withdrawals', d: 'Set a 6-digit withdrawal code in Account.', go: () => { location.hash = 'account'; } });
+    else if (st.require_withdrawal_code !== false && !u.has_withdraw_code) list.push({ k: 'warn', ic: 'shield-check', t: 'Protect your withdrawals', d: 'Set a 6-digit withdrawal code in Account.', go: () => { location.hash = 'account/security'; } });
     if (!u.demo && st.deposit_bank) list.push({ k: 'green', ic: 'banknote', t: `Deposit by bank transfer`, d: `Send to ${st.deposit_bank.bank_name} and request a deposit. Credited after approval.`, go: () => goWallet('deposit') });
     if (top) list.push({ k: 'violet', ic: 'rocket', t: `Trade ${top.symbol} up to ${top.max_leverage}x`, d: 'Long or short with take-profit and stop-loss.', go: () => goTrade(top.symbol) });
     list.push({ k: 'blue', ic: 'sparkles', t: 'Daylight or dark?', d: 'Switch the look any time with the sun / moon button.', go: () => $('[data-theme-switch]').click() });

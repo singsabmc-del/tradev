@@ -365,3 +365,30 @@ body.is-demo .real-only, body.is-demo #bankCard { display: none !important; }
   body:not(.is-demo) .account-grid.as-security #profForm { display: none; }
 }
 @media (max-width: 900px) { .app { align-content: start; } }
+
+/* Account: menu + three pages */
+.acct-layout { display: grid; grid-template-columns: 280px minmax(0, 760px); gap: 18px; align-items: start; }
+.acct-nav { display: grid; padding: 8px; gap: 2px; position: sticky; top: 22px; }
+.acct-nav a { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; color: var(--text); }
+.acct-nav a:hover { background: var(--hover); }
+.acct-nav a.active { background: rgba(25, 227, 125, 0.08); color: var(--green); }
+.acct-nav a > svg:first-child { width: 20px; height: 20px; flex: none; }
+.acct-nav-txt { display: grid; flex: 1; min-width: 0; }
+.acct-nav-txt small { color: var(--muted); font-size: 12px; }
+.acct-chev { width: 16px; height: 16px; color: var(--dim); }
+.acct-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex: none; }
+.acct-pages, .acct-stack { display: grid; gap: 18px; }
+.acct-stack { grid-template-columns: 1fr 1fr; align-items: start; }
+.wallet-bank { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 13px; color: var(--muted); }
+.wallet-bank svg { width: 16px; height: 16px; flex: none; }
+.wallet-bank span:first-of-type { color: var(--text); }
+.wallet-bank:hover span:first-of-type { color: var(--green); }
+@media (max-width: 1150px) { .acct-stack { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .acct-layout { grid-template-columns: 1fr; gap: 14px; }
+  .acct-nav { position: static; grid-template-columns: repeat(3, 1fr); padding: 4px; border-radius: 14px; }
+  .acct-nav a { flex-direction: column; justify-content: center; gap: 4px; padding: 10px 4px; text-align: center; position: relative; }
+  .acct-nav-txt small, .acct-chev { display: none; }
+  .acct-nav-txt b { font-size: 12.5px; font-weight: 600; }
+  .acct-dot { position: absolute; top: 8px; right: 14px; }
+}
