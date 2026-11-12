@@ -3,6 +3,7 @@ const db = require('./supabase');
 const auth = require('./auth');
 const engine = require('./engine');
 const config = require('./config');
+const sheets = require('./sheets');
 
 class ApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -230,7 +231,15 @@ route('GET', '/api/admin/stats', async ({ req }) => {
   const stats = await db.rpc('admin_stats');
   let unrealizedPnl = 0;
   for (const o of engine.orders.values()) unrealizedPnl += unrealized(o) || 0;
-  return { ...stats, unrealized_pnl: unrealizedPnl };
+  return { ...stats, unrealized_pnl: unrealizedPnl, sheets: sheets.status };
+});
+
+route('POST', '/api/admin/sheets/sync', async ({ req }) => {
+  await requireAdmin(req);
+  if (!sheets.status.enabled) throw new ApiError(400, 'Google Sheets sync is not configured (set SHEETS_WEBHOOK_URL and SHEETS_SECRET)');
+  await sheets.syncOnce();
+  if (sheets.status.lastError) throw new ApiError(502, `Google Sheets: ${sheets.status.lastError}`);
+  return sheets.status;
 });
 
 route('GET', '/api/admin/markets', async ({ req }) => {

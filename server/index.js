@@ -72,6 +72,7 @@ const server = http.createServer((req, res) => {
 async function main() {
   await ensureAdmin();
   await engine.start();
+  require('./sheets').start();
   server.listen(config.port, () => {
     console.log(`TradeV running → http://localhost:${config.port}   (admin: http://localhost:${config.port}/admin)`);
   });

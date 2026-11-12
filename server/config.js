@@ -25,7 +25,17 @@ const config = {
   adminPassword: env.ADMIN_PASSWORD || 'ChangeMe123!',
   startingBalance: Number(env.STARTING_BALANCE ?? 10000),
   tickMs: Number(env.TICK_MS || 1000),
+  // Google Sheets public data sync (optional) — see integrations/google-sheets/README.md
+  sheetsUrl: env.SHEETS_WEBHOOK_URL || '',
+  sheetsSecret: env.SHEETS_SECRET || '',
+  sheetsSyncSeconds: Math.max(1, Number(env.SHEETS_SYNC_SECONDS || 60)),
+  sheetsIncludeStats: /^(1|true|yes)$/i.test(env.SHEETS_INCLUDE_STATS || ''),
 };
+
+if (config.sheetsUrl && !config.sheetsSecret) {
+  console.warn('[warn] SHEETS_WEBHOOK_URL is set but SHEETS_SECRET is empty: Google Sheets sync disabled.');
+  config.sheetsUrl = '';
+}
 
 if (!config.supabaseUrl || !config.supabaseKey) {
   console.error('\n  Missing SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY. Copy .env.example to .env and fill them in.\n');

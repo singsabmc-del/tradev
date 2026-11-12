@@ -14,7 +14,10 @@ const DB = `tradev_e2e_${process.pid}`;
 const SHIM_PORT = 55000 + (process.pid % 1000);
 const APP_PORT = 56000 + (process.pid % 1000);
 const URL_ = `http://127.0.0.1:${APP_PORT}`;
+const SHEET_PORT = 57000 + (process.pid % 1000);
 const procs = [];
+const sheetPayloads = [];
+let sheetServer;
 
 const psql = (args, input) => spawnSync('psql', [...BASE_ARGS, '-X', '-q', '-v', 'ON_ERROR_STOP=1', ...args], { input, encoding: 'utf8' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -44,6 +47,19 @@ before(async () => {
   const mig = psql(['-d', DB, '-f', path.join(ROOT, 'supabase/migrations/001_init.sql')]);
   if (mig.status !== 0) throw new Error(mig.stderr);
 
+  // Fake Google Apps Script web app: POST /exec answers 302 -> GET /echo (like the real one)
+  sheetServer = require('node:http').createServer((req, res) => {
+    let b = '';
+    req.on('data', (d) => (b += d));
+    req.on('end', () => {
+      if (req.method === 'POST' && req.url === '/exec') {
+        sheetPayloads.push(JSON.parse(b));
+        res.writeHead(302, { location: '/echo' }); return res.end();
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }); res.end('{"ok":true,"rows":6}');
+    });
+  }).listen(SHEET_PORT);
+
   const env = { ...process.env, PSQL_ARGS: [...BASE_ARGS, '-d', DB].join(' '), SHIM_PORT, SHIM_KEY: 'test-key' };
   procs.push(spawn('node', [path.join(ROOT, 'scripts/postgrest-shim.js')], { env, stdio: 'ignore' }));
   await waitFor(() => fetch(`http://127.0.0.1:${SHIM_PORT}/`).then(() => true));
@@ -51,6 +67,7 @@ before(async () => {
     env: {
       ...process.env, SUPABASE_URL: `http://127.0.0.1:${SHIM_PORT}`, SUPABASE_SERVICE_ROLE_KEY: 'test-key',
       JWT_SECRET: 'test-secret', ADMIN_EMAIL: 'admin@test.io', ADMIN_PASSWORD: 'AdminPass123', PORT: APP_PORT, TICK_MS: '200', STARTING_BALANCE: '1000',
+      SHEETS_WEBHOOK_URL: `http://127.0.0.1:${SHEET_PORT}/exec`, SHEETS_SECRET: 'sheet-secret', SHEETS_SYNC_SECONDS: '1', SHEETS_INCLUDE_STATS: 'true',
     },
     stdio: process.env.DEBUG ? 'inherit' : 'ignore',
   }));
@@ -63,6 +80,7 @@ before(async () => {
 
 after(() => {
   for (const p of procs) p.kill();
+  sheetServer.close();
   setTimeout(() => psql(['-c', `drop database if exists ${DB} with (force)`]), 300);
 });
 
@@ -226,4 +244,22 @@ test('ledger integrity: balance equals the sum of completed/held transactions', 
   const sum = transactions.filter((t) => t.status === 'completed' || (t.status === 'pending' && t.type === 'withdrawal'))
     .reduce((s, t) => s + t.amount, 0);
   assert.equal(Math.round(sum * 100), Math.round(u.balance * 100));
+});
+
+test('Google Sheets sync sends public market data only, never customer data', async () => {
+  await waitFor(() => sheetPayloads.length >= 2);
+  const p = sheetPayloads[sheetPayloads.length - 1];
+  assert.equal(p.secret, 'sheet-secret');
+  assert.ok(p.markets.length >= 6);
+  const btc = p.markets.find((m) => m.symbol === 'BTC/USDT');
+  assert.ok(btc.price > 0 && typeof btc.change24h === 'number' && btc.high24h >= btc.low24h);
+  assert.equal(p.stats.customers, 1);
+  const raw = JSON.stringify(p);
+  for (const leak of ['alice', '@test.io', 'balance', 'password', 'email']) assert.ok(!raw.includes(leak), `payload leaks "${leak}"`);
+
+  const s = (await call('/api/admin/stats', { token: admin })).data.sheets;
+  assert.ok(s.enabled && s.lastOk && !s.lastError);
+  const manual = await call('/api/admin/sheets/sync', { method: 'POST', token: admin });
+  assert.equal(manual.status, 200);
+  assert.equal((await call('/api/admin/sheets/sync', { method: 'POST', token: alice })).status, 403);
 });

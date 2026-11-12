@@ -100,7 +100,7 @@
 
   // ---------- dashboard ----------
   async function viewDashboard() {
-    main.innerHTML = title('Dashboard', '<span class="dim small">Auto-refreshes every 10s</span>') + '<div id="dash" class="empty">Loading…</div>';
+    main.innerHTML = title('Dashboard', '<span class="dim small" id="sheetsStatus"></span><span class="dim small">Auto-refreshes every 10s</span>') + '<div id="dash" class="empty">Loading…</div>';
     const load = async () => {
       const [s, pending, recent] = await Promise.all([
         api('/api/admin/stats'), api('/api/admin/transactions?status=pending'), api('/api/admin/orders?status=closed'),
@@ -132,9 +132,24 @@
         <div class="card mt"><div class="card-pad"><h3>Latest closed trades</h3></div><div class="table-wrap tbl-scroll" id="dRecent">${ordersTable(recent.slice(0, 25))}</div></div>
       </div>`;
       wire($('#dash'), load);
+      renderSheets(s.sheets);
     };
     await load().catch((e) => toast(e.message, 'err'));
     refreshTimer = setInterval(() => load().catch(() => {}), 10_000);
+  }
+
+  function renderSheets(st) {
+    const el = $('#sheetsStatus');
+    if (!el || !st) return;
+    if (!st.enabled) { el.innerHTML = 'Google Sheets: <span class="dim">not configured</span> ·'; return; }
+    const state = st.lastError
+      ? `<span class="down" title="${esc(st.lastError)}">error</span>`
+      : st.lastOk ? `<span class="up">synced ${time(st.lastOk)}</span>` : '<span class="dim">waiting…</span>';
+    el.innerHTML = `Google Sheets: ${state} <button class="btn btn-sm" id="syncNow">Sync now</button> ·`;
+    $('#syncNow').onclick = async (e) => {
+      try { renderSheets(await withBusy(e.target, () => api('/api/admin/sheets/sync', { method: 'POST' }))); toast('Google Sheet updated'); }
+      catch (err) { toast(err.message, 'err'); }
+    };
   }
 
   // ---------- markets ----------

@@ -47,6 +47,10 @@ npm start          # http://localhost:3000   admin: http://localhost:3000/admin
 ```
 No `npm install` needed.
 
+### 4. (Optional) Public prices on Google Sheets
+TradeV can push live market prices (never customer data) to a Google Sheet you publish to the web.
+Setup takes about 5 minutes — see [integrations/google-sheets/README.md](integrations/google-sheets/README.md).
+
 ## How it works
 
 ```
@@ -83,9 +87,10 @@ PSQL_ARGS="-h localhost -U postgres" npm test
 
 ## Project layout
 ```
-server/      index.js (HTTP + SSE), api.js (routes), engine.js (market sim), supabase.js, auth.js, config.js
+server/      index.js (HTTP + SSE), api.js (routes), engine.js (market sim), sheets.js (Google Sheets sync), supabase.js, auth.js, config.js
 public/      index.html + app.js (trader), admin.html + admin.js, chart.js, styles
 supabase/    migrations/001_init.sql
+integrations/google-sheets/  Code.gs (Apps Script) + setup guide
 scripts/     postgrest-shim.js (local dev/test only)
 test/        e2e.test.js
 ```
