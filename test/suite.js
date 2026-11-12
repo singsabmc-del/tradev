@@ -566,3 +566,37 @@ test('notifications: admin sends to one customer or everyone; auto notices for w
   assert.equal((await call(`/api/admin/notifications/${all.data.id}`, { method: 'DELETE', token: admin })).status, 200);
   assert.ok(!(await call('/api/notifications', { token: bob })).data.items.some((n) => n.title === 'New market listed'));
 });
+
+test('demo accounts: one click, virtual funds, trade without a bank, no real money, excluded from stats, resettable', async () => {
+  const statsBefore = (await call('/api/admin/stats', { token: admin })).data;
+  assert.equal((await call('/api/settings')).data.demo_enabled, true);
+  const r = await call('/api/auth/demo', { method: 'POST' });
+  assert.equal(r.status, 200);
+  const demo = r.data.token;
+  assert.equal(r.data.user.demo, true);
+  assert.equal(r.data.user.balance, 10000);
+
+  const o = await call('/api/orders', { method: 'POST', token: demo, body: { symbol: 'BTC/USDT', side: 'long', type: 'market', margin: 100, leverage: 5 } });
+  assert.equal(o.status, 200, 'demo trades without a bank account');
+  assert.equal((await call('/api/wallet/deposit', { method: 'POST', token: demo, body: { amount: 50 } })).data.code, 'DEMO');
+  assert.equal((await call('/api/wallet/withdraw', { method: 'POST', token: demo, body: { amount: 50 } })).data.code, 'DEMO');
+
+  const stats = (await call('/api/admin/stats', { token: admin })).data;
+  assert.equal(stats.customers, statsBefore.customers, 'demo users are not counted as customers');
+  assert.equal(stats.open_positions, statsBefore.open_positions);
+  assert.equal(stats.demo_accounts, statsBefore.demo_accounts + 1);
+  const demos = (await call('/api/admin/users?kind=demo', { token: admin })).data;
+  assert.ok(demos.length >= 1 && demos.every((u) => u.demo));
+  assert.ok((await call('/api/admin/users?kind=real', { token: admin })).data.every((u) => !u.demo));
+
+  assert.equal((await call('/api/me/demo/reset', { method: 'POST', token: demo })).status, 400, 'open position blocks reset');
+  await call(`/api/orders/${o.data.id}/close`, { method: 'POST', token: demo });
+  const reset = await call('/api/me/demo/reset', { method: 'POST', token: demo });
+  assert.equal(reset.status, 200);
+  assert.equal(reset.data.balance, 10000);
+  assert.equal((await call('/api/me/demo/reset', { method: 'POST', token: alice })).status, 400, 'real accounts cannot reset');
+
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { demo_enabled: false } });
+  assert.equal((await call('/api/auth/demo', { method: 'POST' })).status, 403);
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { demo_enabled: true } });
+});

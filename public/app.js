@@ -38,7 +38,32 @@
       });
     } catch (err) { $('#authErr').textContent = err.message; }
   });
-  $('#logout').addEventListener('click', () => { store.clear(); location.reload(); });
+  $('#logout').addEventListener('click', async () => {
+    if (S.user && S.user.demo && !(await confirmBox('Leave the demo account?', 'A demo account cannot be opened again after you log out. You can start a new one any time.', { okText: 'Log out' }))) return;
+    store.clear(); location.reload();
+  });
+  // Demo: a practice account with virtual funds, created in one click.
+  $('#demoBtn').addEventListener('click', async () => {
+    $('#authErr').textContent = '';
+    try {
+      await withBusy($('#demoBtn'), async () => {
+        const r = await api('/api/auth/demo', { method: 'POST' });
+        store.set(r.token);
+        await boot();
+      });
+    } catch (err) { $('#authErr').textContent = err.message; }
+  });
+  const openReal = async () => {
+    if (!(await confirmBox('Open a real account?', 'You will leave the demo account and create a real one. Demo balances and trades are not carried over.', { okText: 'Continue' }))) return;
+    store.clear(); sessionStorage.setItem('tv_register', '1'); location.href = '/';
+  };
+  $('#demoReal').addEventListener('click', openReal);
+  $('#demoReal2').addEventListener('click', openReal);
+  $('#demoReset').addEventListener('click', async () => {
+    if (!(await confirmBox('Reset demo balance?', `Your virtual balance goes back to ${fmt(S.settings.demo_balance || 10000)} USDT.`, { okText: 'Reset' }))) return;
+    try { await withBusy($('#demoReset'), () => api('/api/me/demo/reset', { method: 'POST' })); toast('Demo balance reset'); await refreshUser(); }
+    catch (err) { toast(err.message, 'err'); }
+  });
   window.addEventListener('tv:logout', () => location.reload());
 
   // ---------------- navigation ----------------
@@ -66,7 +91,7 @@
   // ---------------- data ----------------
   // ---------------- system settings ----------------
   S.settings = { require_bank_account: true, trading_enabled: true, registration_open: true };
-  const needBank = () => S.settings.require_bank_account !== false && S.user && !S.user.has_bank;
+  const needBank = () => S.settings.require_bank_account !== false && S.user && !S.user.demo && !S.user.has_bank;
   async function loadSettings() {
     try { S.settings = await api('/api/settings'); } catch { /* keep defaults */ }
     applySettings();
@@ -81,6 +106,9 @@
     reg.classList.toggle('hidden', !st.registration_open);
     $('#regClosed').classList.toggle('hidden', st.registration_open !== false);
     if (st.registration_open === false && authMode === 'register') $('[data-auth=login]').click();
+    $('#demoCta').classList.toggle('hidden', st.demo_enabled === false);
+    $('#demoHint').textContent = st.demo_balance ? `Practice with ${fmt(st.demo_balance)} virtual USDT. No sign-up needed.` : '';
+    if (st.registration_open !== false && sessionStorage.getItem('tv_register')) { sessionStorage.removeItem('tv_register'); $('[data-auth=register]').click(); }
     if (!S.user) return;
     $('#bankNeeded').classList.toggle('hidden', !needBank());
     $('#tradingPaused').classList.toggle('hidden', st.trading_enabled !== false);
@@ -114,6 +142,7 @@
     $('#avail').textContent = `${fmt(S.user.balance)} USDT`;
     $('#wBal').textContent = money(S.user.balance);
     $('#adminLink').classList.toggle('hidden', S.user.role !== 'admin');
+    document.body.classList.toggle('is-demo', Boolean(S.user.demo));
     $('#bankNeeded').classList.toggle('hidden', !needBank());
     renderBank();
     updateSummary();

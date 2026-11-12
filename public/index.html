@@ -28,13 +28,18 @@
         <div class="err-msg" id="authErr"></div>
         <button class="btn btn-green btn-block" id="authBtn">Log in</button>
       </form>
+      <div class="demo-cta hidden" id="demoCta">
+        <div class="or"><span>or</span></div>
+        <button type="button" class="btn btn-block btn-icon demo-btn" id="demoBtn"><i data-icon="flask-conical"></i><span>Try a demo account</span></button>
+        <p class="muted small center" id="demoHint"></p>
+      </div>
     </div>
   </div>
 
   <!-- App -->
   <div id="app" class="app hidden">
     <aside class="sidebar">
-      <div class="brand">trade<span class="x">V</span></div>
+      <div class="brand">trade<span class="x">V</span><small class="demo-only">DEMO</small></div>
       <button class="nav-item" data-view="trade"></button>
       <button class="nav-item" data-view="markets"></button>
       <button class="nav-item" data-view="portfolio"></button>
@@ -53,11 +58,13 @@
     </aside>
 
     <header class="mobile-top">
-      <div class="brand">trade<span class="x">V</span></div>
+      <div class="brand">trade<span class="x">V</span><small class="demo-only">DEMO</small></div>
       <div class="top-tools"><div data-lang-switch></div><button data-theme-switch></button><button class="btn btn-icon bell-btn" data-notif-btn title="Notifications" aria-label="Notifications"><i data-icon="bell"></i><span class="bell-dot hidden"></span></button></div>
     </header>
     <main class="main">
       <div class="announce hidden"></div>
+      <div class="demo-bar demo-only"><i data-icon="flask-conical"></i><span><b>Demo account</b> · virtual funds for practice. Nothing here is real money.</span>
+        <button class="btn btn-sm" id="demoReal">Open a real account</button></div>
       <!-- TRADE -->
       <section id="view-trade" class="view">
         <div class="trade-grid">
@@ -169,13 +176,19 @@
         <div class="wallet-grid">
           <div class="wallet-left">
           <div class="card card-pad bank-card" id="bankCard"></div>
+          <div class="card card-pad demo-only demo-wallet">
+            <h3 class="lbl"><i data-icon="flask-conical"></i>Demo account</h3>
+            <p class="muted small">Your balance is virtual money for practice. Deposits and withdrawals are only available on a real account.</p>
+            <div class="row gap"><button class="btn btn-icon" id="demoReset"><i data-icon="rotate-ccw"></i><span>Reset demo balance</span></button>
+            <button class="btn btn-green" id="demoReal2">Open a real account</button></div>
+          </div>
           <div class="card card-pad">
             <h3 class="lbl"><i data-icon="wallet"></i>Balance</h3>
             <div class="big-price num" id="wBal">—</div>
-            <p class="muted small">Deposits are credited after an administrator approves them. Withdrawals are held from your balance until processed.</p>
-            <div class="seg full mt" id="wSeg"><button data-w="deposit" class="active"><i data-icon="arrow-down-to-line"></i>Deposit</button><button data-w="withdraw"><i data-icon="arrow-up-from-line"></i>Withdraw</button></div>
-            <div id="walletInfo" class="mt"></div>
-            <form id="wForm" class="mt">
+            <p class="muted small real-only">Deposits are credited after an administrator approves them. Withdrawals are held from your balance until processed.</p>
+            <div class="seg full mt real-only" id="wSeg"><button data-w="deposit" class="active"><i data-icon="arrow-down-to-line"></i>Deposit</button><button data-w="withdraw"><i data-icon="arrow-up-from-line"></i>Withdraw</button></div>
+            <div id="walletInfo" class="mt real-only"></div>
+            <form id="wForm" class="mt real-only">
               <label class="field"><span>Amount (USDT)</span><input class="input num" id="wAmount" inputmode="decimal" required /></label>
               <label class="field"><span>Note (optional)</span><input class="input" id="wNote" maxlength="80" placeholder="e.g. bank transfer ref" /></label>
               <button class="btn btn-green btn-block" id="wBtn">Request deposit</button>

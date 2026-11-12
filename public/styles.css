@@ -141,7 +141,7 @@ input[type=range] { width: 100%; accent-color: var(--green); }
 .badge { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 7px; background: var(--chip); color: var(--muted); text-transform: capitalize; }
 .badge.win, .badge.long, .badge.completed, .badge.active, .badge.open { background: rgba(25, 227, 125, .14); color: var(--green); }
 .badge.lose, .badge.short, .badge.rejected, .badge.suspended, .badge.liquidation { background: rgba(255, 77, 99, .14); color: var(--red); }
-.badge.pending { background: rgba(255, 192, 77, .14); color: var(--amber); }
+.badge.pending, .badge.demo { background: rgba(255, 192, 77, .14); color: var(--amber); }
 .badge.admin { background: rgba(92, 184, 255, .15); color: var(--blue); }
 
 /* ---------- tables ---------- */
@@ -320,3 +320,21 @@ body.lang-th .badge { text-transform: none; }
 .check { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); }
 .check input { accent-color: var(--green); width: 16px; height: 16px; }
 @media (max-width: 900px) { .note-admin { grid-template-columns: 1fr; } }
+
+/* demo accounts */
+.demo-only { display: none !important; }
+body.is-demo .demo-only { display: revert !important; }
+body.is-demo .demo-bar.demo-only { display: flex !important; }
+body.is-demo .real-only, body.is-demo #bankCard { display: none !important; }
+.brand small.demo-only { color: var(--amber); border-color: rgba(255, 192, 77, .45); }
+.demo-bar { align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border-radius: 14px; font-size: 13.5px;
+  color: var(--amber); background: rgba(255, 192, 77, .08); border: 1px solid rgba(255, 192, 77, .35); }
+.demo-bar svg { width: 18px; height: 18px; flex: none; }
+.demo-bar span { flex: 1; } .demo-bar b { font-weight: 700; }
+.demo-wallet { margin-bottom: 16px; }
+.demo-wallet .row { flex-wrap: wrap; }
+.or { display: flex; align-items: center; gap: 10px; margin: 16px 0 12px; color: var(--dim); font-size: 12px; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line2); }
+.demo-btn { justify-content: center; border-color: rgba(255, 192, 77, .45); color: var(--amber); }
+.demo-btn:hover { background: rgba(255, 192, 77, .08); }
+#demoHint { margin: 8px 0 0; }

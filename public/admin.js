@@ -111,7 +111,7 @@
       const house = Number(s.fees) - Number(s.customer_pnl) - Number(s.unrealized_pnl);
       $('#dash').outerHTML = `<div id="dash">
         <div class="kpis">
-          ${kpi('Customers', fmt(s.customers, 0), `${s.active_customers} active`, '', 'users')}
+          ${kpi('Customers', fmt(s.customers, 0), `${s.active_customers} active${s.demo_accounts ? ` · ${s.demo_accounts} demo` : ''}`, '', 'users')}
           ${kpi('Customer balances', money(s.customer_balances), `+ ${money(s.open_margin)} in open margin`, '', 'wallet')}
           ${kpi('Open positions', fmt(s.open_positions, 0), `${s.pending_orders} pending limit orders`, '', 'layers')}
           ${kpi('Unrealized customer PnL', signed(s.unrealized_pnl), 'live, marked to market', cls(s.unrealized_pnl), 'activity')}
@@ -264,24 +264,26 @@
       <label class="search">${icon('search')}<input class="input" id="q" placeholder="Search name or email…" /></label>
       <select class="input" id="fRole">${opts([['', 'All roles'], ['customer', 'Customers'], ['admin', 'Admins']], 'customer')}</select>
       <select class="input" id="fStatus">${opts([['', 'Any status'], ['active', 'Active'], ['suspended', 'Suspended']])}</select>
+      <select class="input" id="fKind">${opts([['', 'Real & demo'], ['real', 'Real accounts'], ['demo', 'Demo accounts']], 'real')}</select>
       <button class="btn btn-icon" id="addUser">${icon('user-plus')}<span>Add customer</span></button></div>
       <div class="card"><div class="table-wrap tbl-scroll" id="uTable"><div class="empty">Loading…</div></div></div>`;
     let t;
     $('#q').addEventListener('input', () => { clearTimeout(t); t = setTimeout(loadUsers, 250); });
     $('#fRole').addEventListener('change', loadUsers);
     $('#fStatus').addEventListener('change', loadUsers);
+    $('#fKind').addEventListener('change', loadUsers);
     $('#addUser').addEventListener('click', addUser);
     await loadUsers();
   }
   async function loadUsers() {
-    const qs = new URLSearchParams({ q: $('#q').value, role: $('#fRole').value, status: $('#fStatus').value });
+    const qs = new URLSearchParams({ q: $('#q').value, role: $('#fRole').value, status: $('#fStatus').value, kind: $('#fKind').value });
     const users = await api(`/api/admin/users?${qs}`);
     if (!$('#uTable')) return;
     $('#uTable').innerHTML = users.length ? `<table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th class="r">Balance</th><th class="r">Trades</th><th class="r">Win / Lose</th><th class="r">Win rate</th><th class="r">Total PnL</th><th class="r">Open</th><th>Bank</th><th>Status</th><th>Joined</th><th>Last login</th></tr></thead><tbody>
-      ${users.map((u) => `<tr class="clickable" data-uid="${u.id}"><td class="dim">${u.id}</td><td><b>${esc(u.name)}</b> ${u.role === 'admin' ? badge('admin') : ''}</td><td class="muted">${esc(u.email)}</td>
+      ${users.map((u) => `<tr class="clickable" data-uid="${u.id}"><td class="dim">${u.id}</td><td><b>${esc(u.name)}</b> ${u.role === 'admin' ? badge('admin') : ''}${u.demo ? badge('demo') : ''}</td><td class="muted">${esc(u.email)}</td>
         <td class="r num">${fmt(u.balance)}</td><td class="r num">${u.trades}</td><td class="r num"><span class="up">${u.wins}</span> / <span class="down">${u.losses}</span></td>
         <td class="r num">${u.wins + u.losses ? `${((u.wins / (u.wins + u.losses)) * 100).toFixed(0)}%` : '—'}</td>
-        <td class="r num ${cls(u.total_pnl)}">${signed(u.total_pnl)}</td><td class="r num">${u.open_positions}</td><td>${u.has_bank ? `<span class="up" title="${esc(u.bank.bank_name)}">${icon('circle-check')}</span>` : `<span class="down" title="No bank account">${icon('circle-exclamation-point')}</span>`}</td><td>${badge(u.status)}</td>
+        <td class="r num ${cls(u.total_pnl)}">${signed(u.total_pnl)}</td><td class="r num">${u.open_positions}</td><td>${u.demo ? '<span class="dim">—</span>' : u.has_bank ? `<span class="up" title="${esc(u.bank.bank_name)}">${icon('circle-check')}</span>` : `<span class="down" title="No bank account">${icon('circle-exclamation-point')}</span>`}</td><td>${badge(u.status)}</td>
         <td class="muted">${time(u.created_at)}</td><td class="muted">${time(u.last_login_at)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No customers found</div>';
     $$('#uTable [data-uid]').forEach((tr) => tr.addEventListener('click', () => openCustomer(+tr.dataset.uid)));
   }
@@ -498,7 +500,9 @@
         ${tog('trading_enabled', 'Trading enabled', 'Turn off to pause new orders (customers can still close positions)')}
         ${tog('require_bank_account', 'Require bank account', 'Customers must add a bank account before depositing, withdrawing or trading')}
         <div class="grid2 mt">${fld('starting_balance', 'Welcome balance for new accounts (USDT)', st.starting_balance, 'inputmode="decimal"', 'num')}
-        ${fld('max_open_positions', 'Max open positions per customer (0 = no limit)', st.max_open_positions, 'inputmode="numeric"', 'num')}</div>`)}
+        ${fld('max_open_positions', 'Max open positions per customer (0 = no limit)', st.max_open_positions, 'inputmode="numeric"', 'num')}</div>
+        ${tog('demo_enabled', 'Demo accounts', 'Visitors can try a practice account with virtual funds (no bank account, no deposits or withdrawals)')}
+        ${fld('demo_balance', 'Demo balance (virtual USDT)', st.demo_balance, 'inputmode="decimal"', 'num')}`)}
       ${sec('banknote', 'Deposits & withdrawals', `
         ${tog('deposits_enabled', 'Deposits enabled')}
         ${tog('withdrawals_enabled', 'Withdrawals enabled')}
