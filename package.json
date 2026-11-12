@@ -1,0 +1,15 @@
+{
+  "name": "tradev",
+  "version": "1.0.0",
+  "description": "TradeV — leveraged trading web app (Node.js + Supabase) with admin back office",
+  "main": "server/index.js",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "shim": "node scripts/postgrest-shim.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}

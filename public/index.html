@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradeV — Trade</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23061513'/><path d='M7 21l6-6 4 4 8-9' stroke='%2319e37d' stroke-width='3' fill='none'/></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/trade.css" />
+</head>
+<body data-token-key="tradev_token">
+  <!-- Auth -->
+  <div id="auth" class="auth-wrap hidden">
+    <div class="card auth-card">
+      <div class="brand">trade<span class="x">V</span></div>
+      <p class="lead" id="authLead">Sign in to start trading</p>
+      <div class="seg full mb"><button data-auth="login" class="active">Log in</button><button data-auth="register">Create account</button></div>
+      <form id="authForm" autocomplete="on">
+        <label class="field hidden" id="nameField"><span>Full name</span><input class="input" name="name" autocomplete="name" /></label>
+        <label class="field"><span>Email</span><input class="input" name="email" type="email" required autocomplete="email" /></label>
+        <label class="field"><span>Password</span><input class="input" name="password" type="password" required minlength="8" autocomplete="current-password" /></label>
+        <div class="err-msg" id="authErr"></div>
+        <button class="btn btn-green btn-block" id="authBtn">Log in</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">trade<span class="x">V</span></div>
+      <button class="nav-item" data-view="trade"></button>
+      <button class="nav-item" data-view="markets"></button>
+      <button class="nav-item" data-view="portfolio"></button>
+      <button class="nav-item" data-view="wallet"></button>
+      <a class="nav-item hidden" id="adminLink" href="/admin"></a>
+      <div class="spacer"></div>
+      <div class="userbox">
+        <div class="who" id="uName"></div>
+        <div class="email" id="uEmail"></div>
+        <div class="row between mt">
+          <span class="num" id="uBal"></span>
+          <button class="btn btn-sm" id="logout">Log out</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- TRADE -->
+      <section id="view-trade" class="view">
+        <div class="trade-grid">
+          <div class="trade-left">
+            <div class="row mb market-bar">
+              <div class="market-picker card">
+                <button id="pickerBtn" class="picker-btn">
+                  <span class="coin" id="coinIcon">B</span>
+                  <span><b id="symName">BTC/USDT</b><span class="perp">Perp</span></span>
+                  <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" stroke="currentColor" fill="none" stroke-width="1.6"/></svg>
+                </button>
+                <div id="pickerList" class="picker-list hidden"></div>
+              </div>
+              <div class="live-dot" id="liveDot" title="Live feed"></div>
+            </div>
+
+            <div class="card chart-card">
+              <div class="price-head">
+                <div>
+                  <div class="muted small">Last <span id="symLabel"></span> price</div>
+                  <div class="big-price num" id="lastPrice">—</div>
+                </div>
+                <div class="stat"><span class="muted">24h change</span><b class="num" id="chg">—</b></div>
+                <div class="stat"><span class="muted">24h high</span><b class="num" id="hi">—</b></div>
+                <div class="stat"><span class="muted">24h low</span><b class="num" id="lo">—</b></div>
+                <div class="stat hide-sm"><span class="muted">24h volume</span><b class="num" id="vol">—</b></div>
+              </div>
+              <div id="chart" class="chart"></div>
+              <div class="chart-tools">
+                <div class="seg" id="tfSeg">
+                  <button data-tf="1" class="active">1m</button><button data-tf="5">5m</button><button data-tf="15">15m</button><button data-tf="60">1h</button>
+                </div>
+                <span class="dim small">Scroll to zoom · drag to pan · double-click to reset</span>
+              </div>
+            </div>
+
+            <div class="tabs mt" id="bottomTabs">
+              <button class="tab active" data-tab="positions">Positions<span class="count" id="cPos">0</span></button>
+              <button class="tab" data-tab="open">Open orders<span class="count" id="cOpen">0</span></button>
+              <button class="tab" data-tab="history">History</button>
+              <button class="tab" data-tab="tx">Transactions</button>
+            </div>
+            <div class="card table-card"><div class="table-wrap" id="bottomTable"></div></div>
+          </div>
+
+          <!-- ORDER PANEL -->
+          <div class="card order-panel">
+            <div class="row between">
+              <div class="seg side-seg">
+                <button data-side="long" class="active long">Buy / Long</button>
+                <button data-side="short" class="short">Sell / Short</button>
+              </div>
+            </div>
+            <div class="row between mt"><span class="muted">Available</span><b class="num" id="avail">—</b></div>
+
+            <div class="op-row"><span>Order type</span>
+              <div class="seg" id="typeSeg"><button data-type="market" class="active">Market</button><button data-type="limit">Limit</button></div>
+            </div>
+            <label class="field hidden" id="limitField"><span>Limit price</span>
+              <div class="input-group"><input id="limitPrice" inputmode="decimal" /><span class="suffix" id="limitQuote">USDT</span></div>
+            </label>
+
+            <div class="op-row"><span>Leverage</span><b class="num" id="levLabel">10x</b></div>
+            <div class="seg full lev-seg" id="levSeg"></div>
+            <input type="range" id="levRange" min="1" max="100" value="10" />
+
+            <label class="field mt"><span>Margin (cost)</span>
+              <div class="input-group"><input id="margin" inputmode="decimal" placeholder="0.00" /><span class="suffix">USDT</span></div>
+            </label>
+            <div class="seg full pct-seg"><button data-pct="0.1">10%</button><button data-pct="0.25">25%</button><button data-pct="0.5">50%</button><button data-pct="1">Max</button></div>
+
+            <div class="op-row mt"><span>Take profit</span><label class="switch"><input type="checkbox" id="tpOn" /><span></span></label></div>
+            <div class="input-group hidden" id="tpBox"><input id="tp" inputmode="decimal" placeholder="Trigger price" /><span class="suffix" id="tpPct"></span></div>
+            <div class="op-row"><span>Stop loss</span><label class="switch"><input type="checkbox" id="slOn" /><span></span></label></div>
+            <div class="input-group hidden" id="slBox"><input id="sl" inputmode="decimal" placeholder="Trigger price" /><span class="suffix" id="slPct"></span></div>
+
+            <div class="summary">
+              <div><span>Entry price</span><b class="num" id="sEntry">—</b></div>
+              <div><span>Position size</span><b class="num" id="sSize">—</b></div>
+              <div><span>Position value</span><b class="num" id="sValue">—</b></div>
+              <div><span>Est. liquidation</span><b class="num down" id="sLiq">—</b></div>
+              <div><span>Fee</span><b class="num" id="sFee">—</b></div>
+              <div><span>Total cost</span><b class="num" id="sCost">—</b></div>
+            </div>
+            <button class="btn btn-green btn-block" id="submitOrder">Buy / Long</button>
+            <p class="dim small center" id="orderHint"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- MARKETS -->
+      <section id="view-markets" class="view hidden">
+        <h1 class="page-title">Markets</h1>
+        <div class="card"><div class="table-wrap" id="marketsTable"></div></div>
+      </section>
+
+      <!-- PORTFOLIO -->
+      <section id="view-portfolio" class="view hidden">
+        <h1 class="page-title">Portfolio</h1>
+        <div class="kpis" id="pfKpis"></div>
+        <div class="card"><div class="card-pad"><h3>Trade history</h3></div><div class="table-wrap" id="pfHistory"></div></div>
+      </section>
+
+      <!-- WALLET -->
+      <section id="view-wallet" class="view hidden">
+        <h1 class="page-title">Wallet</h1>
+        <div class="wallet-grid">
+          <div class="card card-pad">
+            <h3>Balance</h3>
+            <div class="big-price num" id="wBal">—</div>
+            <p class="muted small">Deposits are credited after an administrator approves them. Withdrawals are held from your balance until processed.</p>
+            <div class="seg full mt" id="wSeg"><button data-w="deposit" class="active">Deposit</button><button data-w="withdraw">Withdraw</button></div>
+            <form id="wForm" class="mt">
+              <label class="field"><span>Amount (USDT)</span><input class="input num" id="wAmount" inputmode="decimal" required /></label>
+              <label class="field"><span>Note (optional)</span><input class="input" id="wNote" maxlength="80" placeholder="e.g. bank transfer ref" /></label>
+              <button class="btn btn-green btn-block" id="wBtn">Request deposit</button>
+            </form>
+          </div>
+          <div class="card"><div class="card-pad"><h3>Transactions</h3></div><div class="table-wrap" id="wTx"></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/chart.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

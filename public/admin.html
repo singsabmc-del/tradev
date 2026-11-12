@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TradeV Admin</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23061513'/><path d='M16 5l9 3.5v7c0 6-4 9.5-9 11-5-1.5-9-5-9-11v-7z' stroke='%235cb8ff' stroke-width='2.5' fill='none'/></svg>" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+    .winbar { height: 8px; border-radius: 99px; background: rgba(255,77,99,.5); overflow: hidden; margin-top: 10px; }
+    .winbar > div { height: 100%; background: var(--green); }
+    .drawer h2 { margin: 0; font-size: 21px; }
+    .drawer .close-x { margin-left: auto; }
+    .mini-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 18px 0; }
+    .mini-kpis .card { padding: 12px 14px; }
+    .mini-kpis .label { font-size: 12px; color: var(--muted); }
+    .mini-kpis .value { font-family: var(--mono); font-size: 17px; margin-top: 4px; }
+    .tbl-scroll { max-height: 62vh; overflow: auto; }
+    .hint { font-size: 12px; color: var(--dim); margin: -6px 0 12px; }
+    @media (max-width: 900px) { .two { grid-template-columns: minmax(0, 1fr); } }
+    .main > * { min-width: 0; }
+  </style>
+</head>
+<body data-token-key="tradev_admin_token">
+  <div id="auth" class="auth-wrap hidden">
+    <div class="card auth-card">
+      <div class="brand">trade<span class="x">V</span> <small>ADMIN</small></div>
+      <p class="lead">Back office sign in</p>
+      <form id="authForm">
+        <label class="field"><span>Email</span><input class="input" name="email" type="email" required autocomplete="username" /></label>
+        <label class="field"><span>Password</span><input class="input" name="password" type="password" required autocomplete="current-password" /></label>
+        <div class="err-msg" id="authErr"></div>
+        <button class="btn btn-green btn-block" id="authBtn">Sign in</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand">trade<span class="x">V</span> <small>ADMIN</small></div>
+      <button class="nav-item" data-view="dashboard"></button>
+      <button class="nav-item" data-view="markets"></button>
+      <button class="nav-item" data-view="customers"></button>
+      <button class="nav-item" data-view="transactions"></button>
+      <button class="nav-item" data-view="orders"></button>
+      <a class="nav-item" href="/" id="toApp"></a>
+      <div class="spacer"></div>
+      <div class="userbox">
+        <div class="who" id="uName"></div>
+        <div class="email" id="uEmail"></div>
+        <button class="btn btn-sm mt" id="logout">Log out</button>
+      </div>
+    </aside>
+    <main class="main" id="main"></main>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>
