@@ -171,7 +171,7 @@ class CandleChart {
       if (c) {
         const col = c.c >= c.o ? this.colors.up : this.colors.down;
         const d = new Date(c.t);
-        const parts = [['', d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })], ['O', this.fmt(c.o)], ['H', this.fmt(c.h)], ['L', this.fmt(c.l)], ['C', this.fmt(c.c)]];
+        const parts = [['', d.toLocaleString(window.I18N ? I18N.locale : undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })], ['O', this.fmt(c.o)], ['H', this.fmt(c.h)], ['L', this.fmt(c.l)], ['C', this.fmt(c.c)]];
         let x = 10;
         ctx.textBaseline = 'top';
         for (const [k, v] of parts) {

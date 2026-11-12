@@ -13,6 +13,7 @@
   <div id="auth" class="auth-wrap hidden">
     <div class="card auth-card">
       <div class="brand">trade<span class="x">V</span></div>
+      <div class="lang-row"><div data-lang-switch></div></div>
       <p class="lead" id="authLead">Sign in to start trading</p>
       <div class="seg full mb"><button data-auth="login" class="active">Log in</button><button data-auth="register">Create account</button></div>
       <form id="authForm" autocomplete="on">
@@ -35,6 +36,7 @@
       <button class="nav-item" data-view="wallet"></button>
       <a class="nav-item hidden" id="adminLink" href="/admin"></a>
       <div class="spacer"></div>
+      <div class="lang-nav"><div data-lang-switch></div></div>
       <div class="userbox">
         <div class="who" id="uName"></div>
         <div class="email" id="uEmail"></div>
@@ -170,6 +172,7 @@
     </main>
   </div>
 
+  <script src="/i18n.js"></script>
   <script src="/common.js"></script>
   <script src="/chart.js"></script>
   <script src="/app.js"></script>

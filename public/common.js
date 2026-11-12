@@ -29,7 +29,8 @@ const TV = (() => {
   const time = (s) => {
     if (!s) return '—';
     const d = new Date(s);
-    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const locale = window.I18N ? I18N.locale : undefined;
+    return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const badge = (t, extra = '') => `<span class="badge ${esc(t)} ${extra}">${esc(String(t ?? '—').replace('_', ' '))}</span>`;

@@ -60,6 +60,7 @@
     if (S.view === 'trade' && chart) chart.resize();
   }
   window.addEventListener('hashchange', showView);
+  window.addEventListener('tv:lang', () => { if (S.user) { showView(); renderBottom(); } });
 
   // ---------------- data ----------------
   async function refreshUser() {

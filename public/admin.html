@@ -26,6 +26,7 @@
   <div id="auth" class="auth-wrap hidden">
     <div class="card auth-card">
       <div class="brand">trade<span class="x">V</span> <small>ADMIN</small></div>
+      <div class="lang-row"><div data-lang-switch></div></div>
       <p class="lead">Back office sign in</p>
       <form id="authForm">
         <label class="field"><span>Email</span><input class="input" name="email" type="email" required autocomplete="username" /></label>
@@ -46,6 +47,7 @@
       <button class="nav-item" data-view="orders"></button>
       <a class="nav-item" href="/" id="toApp"></a>
       <div class="spacer"></div>
+      <div class="lang-nav"><div data-lang-switch></div></div>
       <div class="userbox">
         <div class="who" id="uName"></div>
         <div class="email" id="uEmail"></div>
@@ -55,6 +57,7 @@
     <main class="main" id="main"></main>
   </div>
 
+  <script src="/i18n.js"></script>
   <script src="/common.js"></script>
   <script src="/admin.js"></script>
 </body>

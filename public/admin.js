@@ -33,6 +33,7 @@
   }
   $('#toApp').innerHTML = `${ICONS.trade}<span>Trading app</span>`;
   window.addEventListener('hashchange', route);
+  window.addEventListener('tv:lang', () => { if (S.me) route(); });
   function route() {
     const v = (location.hash || '#dashboard').slice(1);
     S.view = NAV[v] ? v : 'dashboard';
