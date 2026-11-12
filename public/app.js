@@ -505,14 +505,34 @@
   }));
 
   // ---------------- other views ----------------
+  let mkMode = 'all';
   function renderMarkets() {
-    $('#marketsTable').innerHTML = `<table class="tbl"><thead><tr><th>Market</th><th class="r">Price</th><th class="r">24h change</th><th class="r">24h high</th><th class="r">24h low</th><th class="r">Max leverage</th><th class="r">Fee</th><th></th></tr></thead><tbody>
-      ${S.markets.map((m) => `<tr class="clickable" data-sym="${esc(m.symbol)}"><td><b>${esc(m.symbol)}</b> <span class="dim">${esc(m.name)}</span></td>
-      <td class="r num">${pfmt(m.price, m)}</td><td class="r num ${cls(m.change24h)}">${pct(m.change24h)}</td>
-      <td class="r num">${pfmt(m.high24h, m)}</td><td class="r num">${pfmt(m.low24h, m)}</td><td class="r num">${m.max_leverage}x</td>
-      <td class="r num">${(m.fee_rate * 100).toFixed(3)}%</td><td class="r"><button class="btn btn-sm btn-ghost-green">Trade</button></td></tr>`).join('')}</tbody></table>`;
-    $$('#marketsTable tr[data-sym]').forEach((tr) => tr.addEventListener('click', () => { selectMarket(tr.dataset.sym); location.hash = 'trade'; }));
+    const q = ($('#mkQ').value || '').trim().toLowerCase();
+    let rows = S.markets.filter((m) => !q || m.symbol.toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q)).map((m) => ({ m, c: chg(m) }));
+    if (mkMode === 'gainers') rows = rows.filter((r) => r.c >= 0).sort((a, b) => b.c - a.c);
+    else if (mkMode === 'losers') rows = rows.filter((r) => r.c < 0).sort((a, b) => a.c - b.c);
+    else if (mkMode === 'volume') rows.sort((a, b) => (b.m.volume24h || 0) * b.m.price - (a.m.volume24h || 0) * a.m.price);
+    $('#marketsTable').innerHTML = rows.length ? `<div class="mk-head"><span>Market</span><span class="hide-md">Last 4h</span><span class="hide-md">24h high / low</span><span class="r">Price · 24h</span><span></span></div>`
+      + rows.map(({ m, c }) => `<div class="mk-row" data-sym="${esc(m.symbol)}" role="button" tabindex="0">
+        <span class="mk-logo" style="${coinStyle(m)}">${esc(m.base[0])}</span>
+        <span class="mk-name"><b>${esc(m.base)}<span class="dim">/${esc(m.quote)}</span></b><small>${esc(m.name)} · ${m.max_leverage}x</small></span>
+        ${spark(m)}
+        <span class="mk-hl num r hide-md"><span>${pfmt(m.high24h, m)}</span><span class="dim">${pfmt(m.low24h, m)}</span></span>
+        <span class="mk-px r"><b class="num">${pfmt(m.price, m)}</b><small class="num ${cls(c)}">${c >= 0 ? '+' : ''}${(c * 100).toFixed(2)}%</small></span>
+        <button class="btn btn-sm btn-ghost-green mk-go hide-md" tabindex="-1">Trade</button></div>`).join('')
+      : '<div class="empty">No markets found</div>';
+    $$('#marketsTable [data-sym]').forEach((el) => {
+      el.addEventListener('click', () => goTrade(el.dataset.sym));
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') goTrade(el.dataset.sym); });
+    });
+    loadSparks().then((fresh) => { if (fresh && S.view === 'markets') renderMarkets(); });
   }
+  $('#mkQ').addEventListener('input', renderMarkets);
+  $$('#mkTabs button').forEach((b) => b.addEventListener('click', () => {
+    mkMode = b.dataset.mk;
+    $$('#mkTabs button').forEach((x) => x.classList.toggle('active', x === b));
+    renderMarkets();
+  }));
 
   function renderPortfolio() {
     const closed = S.history.filter((o) => o.status === 'closed');
@@ -708,9 +728,9 @@
       <div class="actions"><button class="btn" data-close>Close</button></div>`);
   }
   async function loadSparks() {
-    if (Date.now() - sparksAt < 60_000) return;
+    if (Date.now() - sparksAt < 60_000) return false;
     sparksAt = Date.now();
-    await Promise.all(S.markets.slice(0, 6).map(async (m) => {
+    await Promise.all(S.markets.slice(0, 30).map(async (m) => {
       try {
         const r = await api(`/api/candles?symbol=${encodeURIComponent(m.symbol)}&limit=240`);
         const rows = r.data || r;
@@ -718,6 +738,7 @@
         sparks[m.symbol] = rows.filter((_, i) => i % step === 0).map((c) => c.c);
       } catch { /* sparkline is optional */ }
     }));
+    return true;
   }
   function spark(m) {
     const pts = (sparks[m.symbol] || []).concat(m.price);

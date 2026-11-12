@@ -143,6 +143,7 @@ const I18N = (() => {
     'Where withdrawals are paid': 'บัญชีรับเงินถอน', 'Manage': 'จัดการ', 'Add a bank account': 'เพิ่มบัญชีธนาคาร',
     'Demo accounts have no password or withdrawal code. Open a real account to use them.': 'บัญชีเดโมไม่มีรหัสผ่านหรือรหัสถอนเงิน เปิดบัญชีจริงเพื่อใช้งาน',
     'Demo accounts cannot deposit or withdraw, so no bank account is needed.': 'บัญชีเดโมฝากหรือถอนเงินไม่ได้ จึงไม่ต้องใช้บัญชีธนาคาร',
+    'All': 'ทั้งหมด', '24h high / low': 'สูงสุด / ต่ำสุด 24 ชม.', '24h': '24 ชม.', 'Market': 'ตลาด', 'Last 4h': '4 ชม. ล่าสุด', 'Price · 24h': 'ราคา · 24 ชม.',
     // home
     'Home': 'หน้าแรก', 'Welcome back': 'ยินดีต้อนรับกลับ', 'Good morning': 'สวัสดีตอนเช้า', 'Good afternoon': 'สวัสดีตอนบ่าย', 'Good evening': 'สวัสดีตอนเย็น',
     'Search markets': 'ค้นหาตลาด', 'Ranking list': 'อันดับ', 'All markets': 'ตลาดทั้งหมด', 'Gainers': 'ขึ้นมากสุด', 'Losers': 'ลงมากสุด', '24h Vol': 'วอลุ่ม 24 ชม.',

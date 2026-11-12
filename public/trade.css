@@ -174,3 +174,40 @@
   .mini-top { flex-direction: column; gap: 2px; }
   .mini-top span { font-size: 11.5px; }
 }
+
+/* ---------- markets list ---------- */
+#view-markets { max-width: 1100px; }
+.mk-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.mk-search { flex: 1; min-width: 220px; max-width: 360px; padding-left: 12px; }
+.mk-search svg { width: 18px; height: 18px; color: var(--muted); }
+.mk-search .input { border: 0; background: none; }
+.mk-tabs { border-bottom: 0; padding: 0; }
+.mk-list { padding: 6px 0; overflow: hidden; }
+.mk-head, .mk-row { display: grid; grid-template-columns: 46px minmax(140px, 1.3fr) minmax(90px, 1fr) minmax(110px, .8fr) minmax(110px, .8fr) 76px; align-items: center; gap: 16px; padding: 0 20px; }
+.mk-head { padding-top: 8px; padding-bottom: 8px; font-size: 12px; color: var(--muted); }
+.mk-head span:first-child { grid-column: 1 / 3; }
+.mk-row { padding-top: 12px; padding-bottom: 12px; cursor: pointer; border-top: 1px solid var(--line); outline: none; }
+.mk-row:hover, .mk-row:focus-visible { background: var(--hover); }
+.mk-logo { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-weight: 800; font-size: 19px; color: #1d1200;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 4px 14px rgba(0,0,0,.18); }
+.mk-name { display: grid; min-width: 0; gap: 2px; }
+.mk-name b { font-size: 16px; } .mk-name b .dim { font-weight: 500; font-size: 13px; }
+.mk-name small { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mk-row .spark { height: 36px; max-width: 160px; }
+.mk-hl { display: grid; gap: 2px; font-size: 13px; }
+.mk-px { display: grid; gap: 3px; justify-items: end; }
+.mk-px b { font-size: 16px; font-weight: 600; }
+.mk-px small { font-size: 13px; font-weight: 600; }
+.mk-go { justify-self: end; }
+@media (max-width: 900px) {
+  .mk-bar { gap: 10px; } .mk-search { max-width: none; flex-basis: 100%; }
+  .mk-tabs { gap: 16px; overflow-x: auto; }
+  .mk-head, .mk-row { grid-template-columns: 42px minmax(0, 1fr) 84px minmax(86px, auto); gap: 12px; padding-left: 14px; padding-right: 14px; }
+  .hide-md { display: none !important; }
+  .mk-logo { width: 42px; height: 42px; border-radius: 12px; font-size: 17px; }
+  .mk-name b { font-size: 15px; }
+  .mk-px b { font-size: 15px; }
+}
+.mk-head .r { text-align: right; }
+.mk-search .input { font-family: var(--font); }
+@media (max-width: 900px) { .mk-head { display: none; } .mk-head + .mk-row { border-top: 0; } }

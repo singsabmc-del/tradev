@@ -198,7 +198,11 @@
       <!-- MARKETS -->
       <section id="view-markets" class="view hidden">
         <h1 class="page-title">Markets</h1>
-        <div class="card"><div class="table-wrap" id="marketsTable"></div></div>
+        <div class="mk-bar">
+          <div class="input-group mk-search"><i data-icon="search"></i><input class="input" id="mkQ" placeholder="Search markets" autocomplete="off" /></div>
+          <div class="rank-tabs mk-tabs" id="mkTabs"><button data-mk="all" class="active">All</button><button data-mk="gainers">Gainers</button><button data-mk="losers">Losers</button><button data-mk="volume">24h Vol</button></div>
+        </div>
+        <div class="card mk-list" id="marketsTable"></div>
       </section>
 
       <!-- PORTFOLIO -->
