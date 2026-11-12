@@ -1,8 +1,10 @@
-// End-to-end API tests against a real Postgres running the Supabase migration,
-// fronted by the local PostgREST shim. Requires `psql` and a Postgres you can
-// create databases on. Configure with PSQL_ARGS (default: "-h localhost -U postgres").
-//   PSQL_ARGS="-h /tmp -p 5433 -U postgres" npm test
+// End-to-end API suite, run once per storage backend (see supabase.test.js / firestore.test.js).
+//  - supabase:  real Postgres with both migrations, behind the PostgREST shim. Needs `psql`
+//               and a Postgres you can create databases on: PSQL_ARGS="-h localhost -U postgres".
+//  - firestore: the Firestore REST mock (scripts/firestore-mock.js); nothing else needed.
+// Two app instances are started on the same database to mimic serverless.
 'use strict';
+const PROVIDER = process.env.TEST_DB || 'supabase';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn, spawnSync } = require('node:child_process');
@@ -15,6 +17,8 @@ const SHIM_PORT = 55000 + (process.pid % 1000);
 const APP_PORT = 56000 + (process.pid % 1000);
 const URL_ = `http://127.0.0.1:${APP_PORT}`;
 const SHEET_PORT = 57000 + (process.pid % 1000);
+const MOCK_PORT = 58000 + (process.pid % 1000);
+const fkey = (id) => String(9_999_999_999 - Number(id)).padStart(10, '0');
 const procs = [];
 const sheetPayloads = [];
 let sheetServer;
@@ -39,14 +43,22 @@ async function call(pathname, { method = 'GET', body, token } = {}) {
 let admin, alice;
 
 before(async () => {
-  const ok = psql(['-c', 'select 1']);
-  if (ok.status !== 0) throw new Error(`Cannot reach Postgres with PSQL_ARGS="${BASE_ARGS.join(' ')}": ${ok.stderr}`);
-  psql(['-c', `create database ${DB}`]);
-  // Supabase roles, so the migration's grants work on vanilla Postgres
-  psql(['-d', DB, '-c', "do $$ begin create role anon nologin; exception when duplicate_object then null; end $$; do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$; do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;"]);
-  for (const f of ['001_init.sql', '002_serverless.sql']) {
-    const mig = psql(['-d', DB, '-f', path.join(ROOT, 'supabase/migrations', f)]);
-    if (mig.status !== 0) throw new Error(mig.stderr);
+  if (PROVIDER === 'supabase') {
+    const ok = psql(['-c', 'select 1']);
+    if (ok.status !== 0) throw new Error(`Cannot reach Postgres with PSQL_ARGS="${BASE_ARGS.join(' ')}": ${ok.stderr}`);
+    psql(['-c', `create database ${DB}`]);
+    // Supabase roles, so the migration's grants work on vanilla Postgres
+    psql(['-d', DB, '-c', "do $$ begin create role anon nologin; exception when duplicate_object then null; end $$; do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$; do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;"]);
+    for (const f of ['001_init.sql', '002_serverless.sql']) {
+      const mig = psql(['-d', DB, '-f', path.join(ROOT, 'supabase/migrations', f)]);
+      if (mig.status !== 0) throw new Error(mig.stderr);
+    }
+    const env = { ...process.env, PSQL_ARGS: [...BASE_ARGS, '-d', DB].join(' '), SHIM_PORT, SHIM_KEY: 'test-key' };
+    procs.push(spawn('node', [path.join(ROOT, 'scripts/postgrest-shim.js')], { env, stdio: 'ignore' }));
+    await waitFor(() => fetch(`http://127.0.0.1:${SHIM_PORT}/`).then(() => true));
+  } else {
+    procs.push(spawn('node', [path.join(ROOT, 'scripts/firestore-mock.js')], { env: { ...process.env, MOCK_PORT }, stdio: 'ignore' }));
+    await waitFor(() => fetch(`http://127.0.0.1:${MOCK_PORT}/`).then(() => true));
   }
 
   // Fake Google Apps Script web app: POST /exec answers 302 -> GET /echo (like the real one)
@@ -62,13 +74,13 @@ before(async () => {
     });
   }).listen(SHEET_PORT);
 
-  const env = { ...process.env, PSQL_ARGS: [...BASE_ARGS, '-d', DB].join(' '), SHIM_PORT, SHIM_KEY: 'test-key' };
-  procs.push(spawn('node', [path.join(ROOT, 'scripts/postgrest-shim.js')], { env, stdio: 'ignore' }));
-  await waitFor(() => fetch(`http://127.0.0.1:${SHIM_PORT}/`).then(() => true));
   const appEnv = (port) => ({
-    ...process.env, SUPABASE_URL: `http://127.0.0.1:${SHIM_PORT}`, SUPABASE_SERVICE_ROLE_KEY: 'test-key',
+    ...process.env,
+    ...(PROVIDER === 'supabase'
+      ? { DB_PROVIDER: 'supabase', SUPABASE_URL: `http://127.0.0.1:${SHIM_PORT}`, SUPABASE_SERVICE_ROLE_KEY: 'test-key' }
+      : { DB_PROVIDER: 'firestore', FIRESTORE_EMULATOR_HOST: `127.0.0.1:${MOCK_PORT}`, FIREBASE_PROJECT_ID: 'demo-tradev' }),
     JWT_SECRET: 'test-secret', ADMIN_EMAIL: 'admin@test.io', ADMIN_PASSWORD: 'AdminPass123', PORT: port, STARTING_BALANCE: '1000',
-    CRON_SECRET: 'cron-secret', LOCAL_TICK_MS: '0',
+    CRON_SECRET: 'cron-secret', LOCAL_TICK_MS: '0', ADVANCE_MIN_SECONDS: '1',
     SHEETS_WEBHOOK_URL: `http://127.0.0.1:${SHEET_PORT}/exec`, SHEETS_SECRET: 'sheet-secret', SHEETS_SYNC_SECONDS: '1', SHEETS_INCLUDE_STATS: 'true',
   });
   // Two independent app instances on the same database = two serverless instances.
@@ -85,7 +97,7 @@ before(async () => {
 after(() => {
   for (const p of procs) p.kill();
   sheetServer.close();
-  setTimeout(() => psql(['-c', `drop database if exists ${DB} with (force)`]), 300);
+  if (PROVIDER === 'supabase') setTimeout(() => psql(['-c', `drop database if exists ${DB} with (force)`]), 300);
 });
 
 const me = async (t) => (await call('/api/me', { token: t })).data;
@@ -274,6 +286,25 @@ test('Google Sheets sync sends public market data only, never customer data', as
   assert.equal((await call('/api/admin/sheets/sync', { method: 'POST', token: alice })).status, 403);
 });
 
+// Simulate "nobody touched this market for N minutes" (and the order having been opened then).
+async function backdate({ orderId, marketId, minutes, price }) {
+  if (PROVIDER === 'supabase') {
+    psql(['-d', DB, '-c', `update orders set opened_at = now() - interval '${minutes} minutes', created_at = now() - interval '${minutes} minutes' where id = ${orderId};
+                           update markets set last_tick_at = now() - interval '${minutes} minutes', price = ${price} where id = ${marketId};`]);
+    return;
+  }
+  const at = { timestampValue: new Date(Date.now() - minutes * 60_000).toISOString() };
+  const root = 'projects/demo-tradev/databases/(default)/documents';
+  const res = await fetch(`http://127.0.0.1:${MOCK_PORT}/v1/${root}:commit`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ writes: [
+      { update: { name: `${root}/orders/${fkey(orderId)}`, fields: { opened_at: at, created_at: at } }, updateMask: { fieldPaths: ['opened_at', 'created_at'] } },
+      { update: { name: `${root}/markets/${fkey(marketId)}`, fields: { last_tick_at: at, price: { doubleValue: price } } }, updateMask: { fieldPaths: ['last_tick_at', 'price'] } },
+    ] }),
+  });
+  assert.equal(res.status, 200, await res.text());
+}
+
 const setMarket = async (symbol, fields) => {
   const { data } = await call('/api/admin/markets', { token: admin });
   const m = data.find((x) => x.symbol === symbol);
@@ -294,8 +325,7 @@ test('catch-up: a TP that hit while nobody was online settles at its price and t
   const o = (await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'BNB/USDT', side: 'long', type: 'market', margin: 10, leverage: 2, tp: 525 } })).data;
   assert.equal(o.entry_price, 500);
   // Pretend the order was opened 10 minutes ago and no request has touched the market since.
-  psql(['-d', DB, '-c', `update orders set opened_at = now() - interval '10 minutes', created_at = now() - interval '10 minutes' where id = ${o.id};
-                         update markets set last_tick_at = now() - interval '10 minutes', price = 500 where id = ${id};`]);
+  await backdate({ orderId: o.id, marketId: id, minutes: 10, price: 500 });
   await sleep(1100); // let the instance's 1s market cache expire (a real idle gap is much longer)
   const hist = (await call('/api/orders?scope=history', { token: alice })).data; // first request after the gap
   const c = hist.find((x) => x.id === o.id);
@@ -312,8 +342,7 @@ test('catch-up: a TP that hit while nobody was online settles at its price and t
 test('two instances advancing the same market at once never double-settle', async () => {
   const id = await setMarket('SOL/USDT', { price: 100, volatility: 0, drift: 0.0005 });
   const o = (await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'SOL/USDT', side: 'short', type: 'market', margin: 10, leverage: 5, sl: 103 } })).data;
-  psql(['-d', DB, '-c', `update orders set opened_at = now() - interval '5 minutes' where id = ${o.id};
-                         update markets set last_tick_at = now() - interval '5 minutes', price = 100 where id = ${id};`]);
+  await backdate({ orderId: o.id, marketId: id, minutes: 5, price: 100 });
   await sleep(1100);
   const other = `http://127.0.0.1:${APP_PORT + 1}`;
   await Promise.all(Array.from({ length: 12 }, (_, i) => fetch((i % 2 ? other : URL_) + '/api/ticker')));

@@ -1,10 +1,10 @@
-# TradeV — trading web app with admin back office (Vercel + Supabase)
+# TradeV — trading web app with admin back office (Vercel + Firebase)
 
 A leveraged trading platform (long / short perpetual-style contracts) with live charts, and an admin
 back office to manage markets, customers, transactions and win/lose order history.
 
 - **Hosting:** **Vercel** (static frontend + one Node.js function), or any Node host
-- **Database:** **Supabase** (Postgres). All balance changes run inside Postgres functions, so they are atomic.
+- **Database:** **Firebase Cloud Firestore** (all balance changes in Firestore transactions) — or **Supabase** (Postgres), selectable with one setting
 - **Public data:** optional **Google Sheets** sync of market prices
 - **Zero npm dependencies** — nothing to install
 
@@ -25,11 +25,13 @@ back office to manage markets, customers, transactions and win/lose order histor
 - **Transactions:** all money movements; approve or reject pending deposits and withdrawals
 - **Orders:** every order filtered by status, **win / lose**, market and side; force-close positions, cancel pending orders
 
-## 1. Set up Supabase
-1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run [`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql), then
-   [`supabase/migrations/002_serverless.sql`](supabase/migrations/002_serverless.sql).
-3. From **Project Settings → API**, copy the project URL and the **secret** key (`service_role` or `sb_secret_…`).
+## 1. Set up the database
+**Firebase (default):** follow [firebase/README.md](firebase/README.md) — create a project, a Firestore database
+(production mode) and a service-account key. That's all: TradeV creates its data on first use.
+
+**Or Supabase:** create a project, run [`001_init.sql`](supabase/migrations/001_init.sql) then
+[`002_serverless.sql`](supabase/migrations/002_serverless.sql) in the SQL Editor, and use `SUPABASE_URL` +
+`SUPABASE_SERVICE_ROLE_KEY` instead of `FIREBASE_SERVICE_ACCOUNT` below.
 
 ## 2. Deploy to Vercel
 1. On [vercel.com/new](https://vercel.com/new), import the GitHub repo. Framework preset: **Other** (the included `vercel.json` sets everything else).
@@ -37,8 +39,7 @@ back office to manage markets, customers, transactions and win/lose order histor
 
    | Variable | Value |
    |---|---|
-   | `SUPABASE_URL` | your project URL |
-   | `SUPABASE_SERVICE_ROLE_KEY` | the secret key — server-side only |
+   | `FIREBASE_SERVICE_ACCOUNT` | the service-account key JSON (whole file, or base64) — server-side only |
    | `JWT_SECRET` | long random string: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
    | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | the admin account, created on first request |
    | `CRON_SECRET` | long random string (protects `/api/cron`) |
@@ -55,7 +56,7 @@ which is the Hobby plan's limit; on Pro you can change `vercel.json` to `* * * *
 
 ## Run locally
 ```bash
-cp .env.example .env   # fill in Supabase + secrets
+cp .env.example .env   # fill in Firebase (or Supabase) + secrets
 npm start              # http://localhost:3000   admin: /admin
 ```
 
@@ -63,7 +64,7 @@ npm start              # http://localhost:3000   admin: /admin
 
 ```
 Browser ──poll /api/ticker (CDN-cached 1s)──▶ Vercel Function (api/index.js → lib/)
-        ──REST (service key)──────────────▶ Supabase Postgres: tables + RLS + atomic SQL functions
+        ──REST (service account)──────────▶ Firestore: transactions   (or Supabase Postgres: SQL functions)
                                                          └── Google Sheets (optional, public prices)
 ```
 
@@ -71,41 +72,43 @@ Browser ──poll /api/ticker (CDN-cached 1s)──▶ Vercel Function (api/ind
   price at `last_tick_at`; any request advances it to "now", simulating the missed seconds (random walk using
   the admin's volatility and drift), filling in the 1-minute candles, and walking every open order along that
   path. TP / SL / liquidation / limit fills are settled **at their trigger price and at the moment they were
-  hit**, even if the site was closed. `apply_tick()` commits each advance atomically, using `last_tick_at` as
-  an optimistic lock, so parallel function instances never double-apply a tick or double-settle an order.
+  hit**, even if the site was closed. Each advance is committed atomically (a Firestore transaction, or the
+  `apply_tick()` SQL function) with `last_tick_at` as an optimistic lock, so parallel function instances never
+  double-apply a tick or double-settle an order. On Firestore markets are saved at most every 5 seconds
+  (`ADVANCE_MIN_SECONDS`) to keep reads/writes low — see [costs](firebase/README.md#costs--ថ្លៃចំណាយ).
 - **Live updates by polling.** Pages poll `/api/ticker` (CDN-cached for 1 second, so many viewers cost about
   one function run per second) and `/api/updates` for their own fills / TP / SL notifications.
-- **Security.** The browser never talks to Supabase. RLS is on with no policies and all functions are
-  `service_role`-only, so the public anon key can't read or change anything. Login throttling is stored in
-  the database so it works across instances.
+- **Security.** The browser never talks to the database. Firestore rules deny all client access (Supabase: RLS
+  with no policies, `service_role`-only functions). Login throttling is stored in the database so it works
+  across instances.
 - **PnL:** `size = margin × leverage / entry`; long PnL `= (exit − entry) × size`, short is the reverse;
   loss is capped at the margin (liquidation). A trade is a **win** if PnL minus fee is positive.
 
-| Table | Purpose |
-|---|---|
-| `app_users` | customers & admins, balance, status |
-| `markets` | tradable symbols, settings, and `last_tick_at` for the catch-up engine |
-| `candles` | 1-minute OHLCV history (pruned after 30 days by the cron job) |
-| `orders` | every order / position: entry, exit, PnL, **result (win/lose)**, close reason |
-| `transactions` | ledger of every balance change |
-| `app_state`, `login_failures` | background-job claims & status; shared login throttling |
+Data: users, markets, 1-minute candles (pruned after 30 days), orders (entry, exit, PnL, **result win/lose**,
+close reason), transactions (ledger of every balance change). Firestore layout: [firebase/README.md](firebase/README.md#data-layout--រចនាសម្ព័ន្ធទិន្នន័យ);
+Postgres schema: [supabase/migrations](supabase/migrations).
 
 ## Tests
-The end-to-end suite runs both migrations on a local Postgres behind a small PostgREST-compatible shim
-(`scripts/postgrest-shim.js`) and starts **two** app instances to mimic serverless. It covers trading, TP /
-liquidation, limit fills, catch-up after an idle gap, concurrent instances, wallet approvals, admin features,
-Google Sheets (no customer data leaks) and ledger integrity.
+One end-to-end suite runs against **both** backends, each with **two** app instances to mimic serverless:
+Firestore via an in-memory Firestore REST stand-in with optimistic transaction aborts
+(`scripts/firestore-mock.js`), and Supabase via a real Postgres behind a PostgREST shim. It covers trading,
+TP / liquidation, limit fills, catch-up after an idle gap, concurrent instances, wallet approvals, admin
+features, Google Sheets (no customer data leaks) and ledger integrity.
 ```bash
-PSQL_ARGS="-h localhost -U postgres" npm test
+npm run test:firestore                                   # no setup needed
+PSQL_ARGS="-h localhost -U postgres" npm run test:supabase
 ```
 
 ## Project layout
 ```
 api/index.js         Vercel Function — all /api/* requests (rewritten in vercel.json)
-lib/                 api.js (routes), engine.js (catch-up market engine), sheets.js, supabase.js, auth.js, config.js, http.js
+lib/                 api.js (routes), engine.js (catch-up market engine), sheets.js, auth.js, config.js, http.js
+lib/store/           firestore.js, supabase.js — the two storage backends behind one interface
+lib/firestore.js     dependency-free Firestore REST client (service-account auth, transactions)
+firebase/            setup guide + firestore.rules
 public/              trader app (index.html, app.js), admin (admin.html, admin.js), chart.js, styles
 server/index.js      local dev server (same API + static files)
-supabase/migrations/ 001_init.sql, 002_serverless.sql
+supabase/migrations/ 001_init.sql, 002_serverless.sql (only if you use Supabase)
 integrations/google-sheets/  Apps Script + setup guide
 test/                e2e.test.js
 vercel.json          routing, function config, daily cron, security headers
@@ -114,4 +117,4 @@ vercel.json          routing, function config, daily cron, security headers
 ## Notes
 - This is a **simulated-price** demo exchange. Real market data or real payments need a price feed, KYC,
   a payment provider, and the licensing that comes with them.
-- Change the admin password after first login and keep `JWT_SECRET`, `CRON_SECRET` and the Supabase secret key private.
+- Change the admin password after first login and keep `JWT_SECRET`, `CRON_SECRET` and the Firebase key (or Supabase secret key) private.
