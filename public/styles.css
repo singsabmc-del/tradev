@@ -173,6 +173,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .lang-row { display: flex; justify-content: center; margin: -2px 0 14px; }
 .lang-nav { padding: 6px 10px 12px; }
 .lang-nav .lang-seg { display: flex; } .lang-nav .lang-seg button { flex: 1; }
+.mobile-top { display: none; }
 body.lang-th { line-height: 1.5; }
 body.lang-th .badge { text-transform: none; }
 
@@ -180,8 +181,13 @@ body.lang-th .badge { text-transform: none; }
   .app { grid-template-columns: 1fr; }
   .sidebar { position: fixed; bottom: 0; top: auto; left: 0; right: 0; height: auto; flex-direction: row; padding: 6px; z-index: 40; border-right: 0; border-top: 1px solid var(--line); overflow-x: auto; }
   .sidebar .brand, .sidebar .spacer, .userbox { display: none; }
-  .lang-nav { padding: 0 4px; display: flex; align-items: center; }
-  .lang-nav .lang-seg button { padding: 6px 8px; }
+  .lang-nav { display: none; }
+  .mobile-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 0; }
+  .mobile-top .brand { padding: 0; font-size: 21px; }
+  .nav-item span { white-space: nowrap; }
+  .sidebar { justify-content: space-around; }
+  .page-title { flex-wrap: wrap; row-gap: 6px; white-space: nowrap; }
+  .page-title > span { margin-left: 0 !important; width: 100%; flex-wrap: wrap; white-space: normal; font-size: 12px; }
   .nav-item { flex-direction: column; gap: 3px; font-size: 11px; padding: 7px 10px; width: auto; flex: 1; align-items: center; }
   .nav-item .badge { display: none; }
   .main { padding: 14px 12px 90px; }
