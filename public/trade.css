@@ -62,3 +62,5 @@
 .bank-needed { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; font-size: 13px;
   color: var(--amber); background: rgba(255, 192, 77, .08); border: 1px solid rgba(255, 192, 77, .35); }
 .bank-needed.hidden { display: none; }
+/* the picker card must sit above the chart card that follows it (both are stacking contexts) */
+.market-picker { position: relative; z-index: 35; }

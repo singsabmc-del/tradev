@@ -152,6 +152,7 @@ const I18N = (() => {
     // demo accounts
     'Try a demo account': 'ทดลองใช้บัญชีเดโม', 'or': 'หรือ', 'DEMO': 'เดโม', 'Demo': 'เดโม', 'Demo account': 'บัญชีเดโม',
     'virtual funds for practice. Nothing here is real money.': 'เงินเสมือนสำหรับฝึกเทรด ไม่ใช่เงินจริง',
+    '· virtual funds for practice. Nothing here is real money.': '· เงินเสมือนสำหรับฝึกเทรด ไม่ใช่เงินจริง',
     'Open a real account': 'เปิดบัญชีจริง', 'Reset demo balance': 'รีเซ็ตยอดเงินเดโม', 'Demo balance reset': 'รีเซ็ตยอดเงินเดโมแล้ว',
     'Your balance is virtual money for practice. Deposits and withdrawals are only available on a real account.': 'ยอดเงินของคุณเป็นเงินเสมือนสำหรับฝึกเทรด การฝากและถอนใช้ได้เฉพาะบัญชีจริง',
     'Leave the demo account?': 'ออกจากบัญชีเดโม?', 'A demo account cannot be opened again after you log out. You can start a new one any time.': 'เมื่อออกจากระบบแล้วจะไม่สามารถเปิดบัญชีเดโมนี้ได้อีก คุณเริ่มบัญชีเดโมใหม่ได้ทุกเมื่อ',
