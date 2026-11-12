@@ -352,9 +352,37 @@
         $('#margin').value = '';
         await Promise.all([refreshUser(), loadActive()]);
         renderChartLines();
+        if (narrow()) { // show the result where it lands
+          $(`#bottomTabs [data-tab="${o.status === 'open' ? 'positions' : 'open'}"]`).click();
+          setTradeSection('positions');
+        }
       });
     } catch (e) { if (e.code === 'BANK_REQUIRED') goBank(e.message); else toast(e.message, 'err'); }
   });
+
+  // ---------------- narrow screens: Chart / Order / Positions ----------------
+  function setTradeSection(sec) {
+    S.tradeSection = sec;
+    try { sessionStorage.setItem('tv_trade_section', sec); } catch {}
+    $('#view-trade').dataset.ts = sec;
+    $$('#tradeSwitch button').forEach((b) => b.classList.toggle('active', b.dataset.ts === sec));
+    if (sec === 'chart' && chart) requestAnimationFrame(() => chart.resize());
+    window.scrollTo({ top: 0 });
+  }
+  const narrow = () => matchMedia('(max-width: 1150px)').matches;
+  $$('#tradeSwitch button').forEach((b) => b.addEventListener('click', () => setTradeSection(b.dataset.ts)));
+  $$('[data-quick]').forEach((b) => b.addEventListener('click', () => {
+    $(`[data-side="${b.dataset.quick}"]`).click();
+    setTradeSection('order');
+  }));
+  let initialSection = 'chart';
+  try { initialSection = sessionStorage.getItem('tv_trade_section') || 'chart'; } catch {}
+  setTradeSection(initialSection);
+  // Account: Profile / Security
+  $$('#acctSwitch button').forEach((b) => b.addEventListener('click', () => {
+    $$('#acctSwitch button').forEach((x) => x.classList.toggle('active', x === b));
+    $('#accountGrid').className = `account-grid as-${b.dataset.as}`;
+  }));
 
   // ---------------- bottom tables ----------------
   $$('#bottomTabs .tab').forEach((b) => b.addEventListener('click', async () => {
@@ -411,7 +439,7 @@
   function renderBottom() {
     const pos = S.active.filter((o) => o.status === 'open');
     const pend = S.active.filter((o) => o.status === 'pending');
-    $('#cPos').textContent = pos.length; $('#cOpen').textContent = pend.length;
+    $('#cPos').textContent = pos.length; $('#cPosM').textContent = pos.length + pend.length; $('#cOpen').textContent = pend.length;
     const box = $('#bottomTable');
     box.innerHTML = S.tab === 'positions' ? positionsTable(pos) : S.tab === 'open' ? openOrdersTable(pend) : S.tab === 'history' ? historyTable(S.history) : txTable(S.tx);
     box.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => closePos(+b.dataset.close, b)));

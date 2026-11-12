@@ -138,6 +138,7 @@ const I18N = (() => {
     'Money you paid out to the customer. Recorded as a completed withdrawal to their bank account.': 'เงินที่คุณจ่ายให้ลูกค้า บันทึกเป็นการถอนเข้าบัญชีธนาคารของลูกค้าที่สำเร็จ',
     'Corrections and bonuses: positive to credit, negative to debit. Recorded as an "adjustment".': 'แก้ไขยอดและโบนัส: ค่าบวกเพื่อเพิ่ม ค่าลบเพื่อหัก บันทึกเป็น "การปรับยอด"',
     'Deposit received': 'ได้รับเงินฝากแล้ว', 'Demo accounts use virtual funds: use Reset or Adjust instead': 'บัญชีเดโมใช้เงินเสมือน: ใช้การรีเซ็ตหรือปรับยอดแทน',
+    'Chart': 'กราฟ', 'Order': 'ส่งคำสั่ง', 'Profile': 'โปรไฟล์', 'Security': 'ความปลอดภัย',
     // withdrawal code & review
     'Withdrawal code': 'รหัสถอนเงิน', 'New 6-digit code': 'รหัสใหม่ 6 หลัก', 'Repeat code': 'ยืนยันรหัส', "Account password (to confirm it's you)": 'รหัสผ่านบัญชี (เพื่อยืนยันตัวตน)',
     'Save code': 'บันทึกรหัส', 'Change code': 'เปลี่ยนรหัส', 'Withdrawal code saved': 'บันทึกรหัสถอนเงินแล้ว', 'Your code is set.': 'ตั้งรหัสแล้ว',

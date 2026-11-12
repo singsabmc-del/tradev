@@ -355,3 +355,13 @@ body.is-demo .real-only, body.is-demo #bankCard { display: none !important; }
 .code-input { letter-spacing: 6px; font-size: 18px; }
 #wcStatus svg { width: 16px; height: 16px; color: var(--green); vertical-align: -3px; }
 .review .bank-line { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--field); border: 1px solid var(--line); }
+/* Account: Profile / Security tabs on narrow screens */
+#acctSwitch { display: none; }
+@media (max-width: 900px) {
+  #acctSwitch { display: flex; margin-bottom: 14px; }
+  .acct-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px; }
+  .acct-switch svg { width: 16px; height: 16px; }
+  body:not(.is-demo) .account-grid.as-profile .account-side,
+  body:not(.is-demo) .account-grid.as-security #profForm { display: none; }
+}
+@media (max-width: 900px) { .app { align-content: start; } }

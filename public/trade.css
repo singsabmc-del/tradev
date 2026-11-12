@@ -64,3 +64,27 @@
 .bank-needed.hidden { display: none; }
 /* the picker card must sit above the chart card that follows it (both are stacking contexts) */
 .market-picker { position: relative; z-index: 35; }
+
+/* Narrow screens: show one trade section at a time (Chart / Order / Positions) instead of one long page. */
+#tradeSwitch, .quick-trade { display: none; }
+@media (max-width: 1150px) {
+  #tradeSwitch { display: flex; margin-bottom: 14px; }
+  .trade-switch button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 6px; }
+  .trade-switch svg { width: 16px; height: 16px; }
+  .trade-switch .count { font-size: 11px; background: var(--chip); border-radius: 6px; padding: 1px 6px; color: var(--muted); }
+  #view-trade[data-ts="chart"] .order-panel,
+  #view-trade[data-ts="chart"] #bottomTabs, #view-trade[data-ts="chart"] .table-card,
+  #view-trade[data-ts="order"] .chart-card, #view-trade[data-ts="order"] .quick-trade,
+  #view-trade[data-ts="order"] #bottomTabs, #view-trade[data-ts="order"] .table-card,
+  #view-trade[data-ts="positions"] .chart-card, #view-trade[data-ts="positions"] .quick-trade,
+  #view-trade[data-ts="positions"] .order-panel { display: none !important; }
+  #view-trade[data-ts="chart"] .quick-trade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .quick-trade .btn { justify-content: center; padding: 13px; font-size: 15px; }
+  #view-trade[data-ts="positions"] #bottomTabs { margin-top: 0; }
+  #bottomTabs { overflow-x: auto; flex-wrap: nowrap; }
+  .trade-grid { gap: 0; }
+}
+@media (max-width: 1150px) {
+  #bottomTabs .tab { flex: none; white-space: nowrap; }
+  #bottomTabs { scrollbar-width: none; }
+}

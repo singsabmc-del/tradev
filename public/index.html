@@ -83,6 +83,12 @@
               </div>
               <div class="live-dot" id="liveDot" title="Live feed"></div>
             </div>
+            <!-- phones & tablets: one section at a time instead of one long page -->
+            <div class="seg full trade-switch" id="tradeSwitch">
+              <button data-ts="chart" class="active"><i data-icon="chart-candlestick"></i>Chart</button>
+              <button data-ts="order"><i data-icon="arrow-left-right"></i>Order</button>
+              <button data-ts="positions"><i data-icon="layers"></i>Positions<span class="count" id="cPosM">0</span></button>
+            </div>
 
             <div class="card chart-card">
               <div class="price-head">
@@ -102,6 +108,11 @@
                 </div>
                 <span class="dim small">Scroll to zoom · drag to pan · double-click to reset</span>
               </div>
+            </div>
+
+            <div class="quick-trade">
+              <button class="btn btn-green btn-icon" data-quick="long"><i data-icon="trending-up"></i>Buy / Long</button>
+              <button class="btn btn-red btn-icon" data-quick="short"><i data-icon="trending-down"></i>Sell / Short</button>
             </div>
 
             <div class="tabs mt" id="bottomTabs">
@@ -206,7 +217,8 @@
       <!-- ACCOUNT -->
       <section id="view-account" class="view hidden">
         <h1 class="page-title">Account</h1>
-        <div class="account-grid">
+        <div class="seg full acct-switch real-only" id="acctSwitch"><button data-as="profile" class="active"><i data-icon="user-round"></i>Profile</button><button data-as="security"><i data-icon="shield-check"></i>Security</button></div>
+        <div class="account-grid as-profile" id="accountGrid">
           <form class="card card-pad" id="profForm">
             <h3 class="lbl"><i data-icon="user-round"></i>Personal information</h3>
             <label class="field"><span>Full name</span><input class="input" name="name" maxlength="80" required autocomplete="name" /></label>
