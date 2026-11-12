@@ -42,6 +42,7 @@
   <div id="app" class="app hidden">
     <aside class="sidebar">
       <div class="brand">trade<span class="x">V</span><small class="demo-only">DEMO</small></div>
+      <button class="nav-item" data-view="home"></button>
       <button class="nav-item" data-view="trade"></button>
       <button class="nav-item" data-view="markets"></button>
       <button class="nav-item" data-view="portfolio"></button>
@@ -68,8 +69,31 @@
       <div class="announce hidden"></div>
       <div class="demo-bar demo-only"><i data-icon="flask-conical"></i><span><b>Demo account</b> · virtual funds for practice. Nothing here is real money.</span>
         <button class="btn btn-sm" id="demoReal">Open a real account</button></div>
+      <!-- HOME -->
+      <section id="view-home" class="view hidden">
+        <div class="home-top">
+          <a href="#account" class="avatar" id="hAvatar" title="Account">?</a>
+          <div class="home-hello"><span class="dim small" id="hGreet">Welcome back</span><b id="hName">—</b></div>
+          <button class="btn btn-icon home-search" id="hSearch" aria-label="Search markets"><i data-icon="search"></i><span>Search markets</span></button>
+        </div>
+        <div class="banners" id="hBanners"><div class="banner-track" id="hTrack"></div><div class="banner-dots" id="hDots"></div></div>
+        <div class="quick-grid" id="hQuick"></div>
+        <div class="home-grid">
+          <div class="home-col">
+            <div class="home-cards" id="hCards"></div>
+            <div class="mini-markets" id="hMinis"></div>
+            <a href="#portfolio" class="card card-pad equity-card" id="hEquity"></a>
+          </div>
+          <div class="card rank-card">
+            <div class="row between rank-head"><h3>Ranking list</h3><a href="#markets" class="small">All markets</a></div>
+            <div class="rank-tabs" id="hRankTabs"><button data-r="gainers" class="active">Gainers</button><button data-r="losers">Losers</button><button data-r="volume">24h Vol</button></div>
+            <div id="hRank"></div>
+          </div>
+        </div>
+      </section>
+
       <!-- TRADE -->
-      <section id="view-trade" class="view">
+      <section id="view-trade" class="view hidden">
         <div class="trade-grid">
           <div class="trade-left">
             <div class="row mb market-bar">

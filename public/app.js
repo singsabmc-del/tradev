@@ -73,7 +73,7 @@
   window.addEventListener('tv:logout', () => location.reload());
 
   // ---------------- navigation ----------------
-  const NAV = { trade: ['trade', 'Trade'], markets: ['markets', 'Markets'], portfolio: ['portfolio', 'Portfolio'], wallet: ['wallet', 'Wallet'], account: ['account', 'Account'] };
+  const NAV = { home: ['home', 'Home'], trade: ['trade', 'Trade'], markets: ['markets', 'Markets'], portfolio: ['portfolio', 'Portfolio'], wallet: ['wallet', 'Wallet'], account: ['account', 'Account'] };
   for (const [v, [icon, label]] of Object.entries(NAV)) {
     const b = $(`[data-view="${v}"]`);
     b.innerHTML = `${ICONS[icon]}<span>${label}</span>`;
@@ -81,14 +81,15 @@
   }
   $('#adminLink').innerHTML = `${ICONS.admin}<span>Admin</span>`;
   function showView() {
-    const v = (location.hash || '#trade').slice(1);
-    S.view = NAV[v] ? v : 'trade';
+    const v = (location.hash || '#home').slice(1);
+    S.view = NAV[v] ? v : 'home';
     $$('.view').forEach((s) => s.classList.toggle('hidden', s.id !== `view-${S.view}`));
     $$('[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === S.view));
     if (S.view === 'markets') renderMarkets();
     if (S.view === 'portfolio') loadHistory().then(renderPortfolio);
     if (S.view === 'wallet') loadTx().then(renderWallet);
     if (S.view === 'account') renderAccount();
+    if (S.view === 'home') renderHome();
     if (S.view === 'trade' && chart) chart.resize();
   }
   window.addEventListener('hashchange', showView);
@@ -573,6 +574,7 @@
     updateLiveCells();
     if (S.type === 'market') updateSummary();
     if (S.view === 'markets' && Math.random() < 0.34) renderMarkets();
+    if (S.view === 'home' && Date.now() - (S.homeAt || 0) > 2500) { S.homeAt = Date.now(); renderHomeLive(); }
   }
   // Order updates (fills, TP/SL, liquidations) by polling /api/updates.
   const seen = new Set();
@@ -643,6 +645,144 @@
       toast('Password updated'); e.target.reset();
     } catch (err) { toast(err.message, 'err'); }
   });
+
+  // ---------------- home ----------------
+  const coinStyle = (m) => { const [a, b] = COIN_COLORS[m.base] || ['#3ee7a0', '#139e6a']; return `background:linear-gradient(135deg,${a},${b})`; };
+  const coin = (m, cls = '') => `<span class="coin ${cls}" style="${coinStyle(m)}">${esc(m.base[0])}</span>`;
+  // 24h change kept live: remember each market's 24h open when the list loads, then compare the ticking price to it.
+  const chg = (m) => { if (!m.open24) m.open24 = m.price / (1 + (m.change24h || 0)); return m.price / m.open24 - 1; };
+  const goTrade = (sym, side) => { selectMarket(sym); location.hash = 'trade'; if (side) { $(`[data-side="${side}"]`).click(); setTradeSection('order'); } };
+  const goWallet = (mode) => { location.hash = 'wallet'; setTimeout(() => { const b = $(`[data-w="${mode}"]`); if (b) b.click(); }, 0); };
+  let rankMode = 'gainers', bannerIdx = 0, bannerTimer, sparks = {}, sparksAt = 0;
+
+  function banners() {
+    const st = S.settings, u = S.user, list = [];
+    const top = S.markets.reduce((a, m) => (!a || m.max_leverage > a.max_leverage ? m : a), null);
+    if (st.announcement) list.push({ k: 'info', ic: 'megaphone', t: 'Announcement', d: st.announcement });
+    if (u.demo) list.push({ k: 'demo', ic: 'flask-conical', t: 'Practice with virtual funds', d: 'Nothing here is real money. Open a real account when you are ready.', go: () => $('#demoReal').click() });
+    else if (!u.has_bank && st.require_bank_account !== false) list.push({ k: 'warn', ic: 'landmark', t: 'Add your bank account', d: 'Needed before you can deposit, withdraw or trade.', go: () => goBank() });
+    else if (st.require_withdrawal_code !== false && !u.has_withdraw_code) list.push({ k: 'warn', ic: 'shield-check', t: 'Protect your withdrawals', d: 'Set a 6-digit withdrawal code in Account.', go: () => { location.hash = 'account'; } });
+    if (!u.demo && st.deposit_bank) list.push({ k: 'green', ic: 'banknote', t: `Deposit by bank transfer`, d: `Send to ${st.deposit_bank.bank_name} and request a deposit. Credited after approval.`, go: () => goWallet('deposit') });
+    if (top) list.push({ k: 'violet', ic: 'rocket', t: `Trade ${top.symbol} up to ${top.max_leverage}x`, d: 'Long or short with take-profit and stop-loss.', go: () => goTrade(top.symbol) });
+    list.push({ k: 'blue', ic: 'sparkles', t: 'Daylight or dark?', d: 'Switch the look any time with the sun / moon button.', go: () => $('[data-theme-switch]').click() });
+    return list;
+  }
+  function renderBanners() {
+    const list = banners();
+    $('#hTrack').innerHTML = list.map((b, i) => `<button class="banner b-${b.k}" data-b="${i}"><div class="banner-txt"><b>${esc(b.t)}</b><span>${esc(b.d)}</span></div><div class="banner-ic">${icon(b.ic)}</div></button>`).join('');
+    $('#hDots').innerHTML = list.map((_, i) => `<i class="${i === bannerIdx % list.length ? 'on' : ''}"></i>`).join('');
+    $$('#hTrack .banner').forEach((el) => el.addEventListener('click', () => { const b = list[+el.dataset.b]; if (b.go) b.go(); }));
+    const track = $('#hTrack');
+    track.onscroll = () => { const i = Math.round(track.scrollLeft / track.clientWidth); bannerIdx = i; $$('#hDots i').forEach((d, j) => d.classList.toggle('on', j === i)); };
+    clearInterval(bannerTimer);
+    bannerTimer = setInterval(() => {
+      if (S.view !== 'home' || document.hidden || list.length < 2) return;
+      bannerIdx = (bannerIdx + 1) % list.length;
+      track.scrollTo({ left: bannerIdx * track.clientWidth, behavior: 'smooth' });
+    }, 5000);
+  }
+  const QUICK = [
+    ['arrow-down-to-line', 'Deposit', () => goWallet('deposit'), 'real'],
+    ['arrow-up-from-line', 'Withdraw', () => goWallet('withdraw'), 'real'],
+    ['chart-candlestick', 'Trade', () => goTrade(S.symbol)],
+    ['chart-line', 'Markets', () => { location.hash = 'markets'; }],
+    ['chart-pie', 'Portfolio', () => { location.hash = 'portfolio'; }],
+    ['receipt-text', 'History', () => { location.hash = 'trade'; setTradeSection('positions'); $('#bottomTabs [data-tab="history"]').click(); }],
+    ['bell', 'Notifications', () => openNotifications()],
+    ['headset', 'Support', () => openSupport()],
+  ];
+  function openSupport() {
+    const c = S.settings.support_contact;
+    TV.modal(`<h2 class="row">${icon('headset')}<span>Support</span></h2>
+      <p class="muted">${c ? 'Contact our team:' : 'Support contact details have not been published yet.'}</p>
+      ${c ? `<div class="bank-line"><b class="big-num">${esc(c)}</b></div>` : ''}
+      <div class="actions"><button class="btn" data-close>Close</button></div>`);
+  }
+  async function loadSparks() {
+    if (Date.now() - sparksAt < 60_000) return;
+    sparksAt = Date.now();
+    await Promise.all(S.markets.slice(0, 6).map(async (m) => {
+      try {
+        const r = await api(`/api/candles?symbol=${encodeURIComponent(m.symbol)}&limit=240`);
+        const rows = r.data || r;
+        const step = Math.max(1, Math.floor(rows.length / 40));
+        sparks[m.symbol] = rows.filter((_, i) => i % step === 0).map((c) => c.c);
+      } catch { /* sparkline is optional */ }
+    }));
+  }
+  function spark(m) {
+    const pts = (sparks[m.symbol] || []).concat(m.price);
+    if (pts.length < 3) return '<svg class="spark" viewBox="0 0 100 32"></svg>';
+    const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+    const d = pts.map((v, i) => `${((i / (pts.length - 1)) * 100).toFixed(1)},${(30 - ((v - lo) / span) * 28).toFixed(1)}`).join(' ');
+    const up = pts[pts.length - 1] >= pts[0];
+    return `<svg class="spark ${up ? 'up' : 'down'}" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="${d}" fill="none" stroke="currentColor" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+  }
+  function renderHomeLive() {
+    if (!S.user || !S.markets.length) return;
+    const top = [...S.markets].sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0)).slice(0, 3);
+    $('#hMinis').innerHTML = top.map((m) => { const c = chg(m); return `<button class="card mini" data-sym="${esc(m.symbol)}">
+      <div class="mini-top"><b>${esc(m.symbol)}</b><span class="num ${cls(c)}">${pct(c)}</span></div>
+      <div class="mini-price num ${cls(c)}">${pfmt(m.price, m)}</div>${spark(m)}</button>`; }).join('');
+    $$('#hMinis [data-sym]').forEach((b) => b.addEventListener('click', () => goTrade(b.dataset.sym)));
+    const rows = [...S.markets].map((m) => ({ m, c: chg(m) }));
+    if (rankMode === 'gainers') rows.sort((a, b) => b.c - a.c);
+    else if (rankMode === 'losers') rows.sort((a, b) => a.c - b.c);
+    else rows.sort((a, b) => (b.m.volume24h || 0) * b.m.price - (a.m.volume24h || 0) * a.m.price);
+    $('#hRank').innerHTML = rows.slice(0, 8).map(({ m, c }) => `<button class="rank-row" data-sym="${esc(m.symbol)}">
+      ${coin(m)}<span class="rank-name"><b>${esc(m.symbol)}</b><small>${rankMode === 'volume' ? `<span>Vol</span> ${fmt(m.volume24h || 0, 0)}` : esc(m.name)}</small></span>
+      <span class="num rank-price">${pfmt(m.price, m)}</span><span class="pill num ${c >= 0 ? 'pill-up' : 'pill-down'}">${pct(c)}</span></button>`).join('');
+    $$('#hRank [data-sym]').forEach((b) => b.addEventListener('click', () => goTrade(b.dataset.sym)));
+    const open = S.active.filter((o) => o.status === 'open');
+    const upnl = open.reduce((s, o) => s + (livePnl(o).pnl || 0), 0);
+    const locked = S.active.reduce((s, o) => s + o.margin, 0);
+    $('#hEquity').innerHTML = `<div><span class="muted small">${S.user.demo ? 'Demo equity' : 'Total equity'}</span>
+      <div class="eq-val num">${money(S.user.balance + locked + upnl)}</div>
+      <span class="small"><span class="muted">Open PnL</span> <b class="num ${cls(upnl)}">${signed(upnl)}</b> · <span class="muted">${open.length}</span> <span class="muted">open position(s)</span></span></div>${icon('chevron-right')}`;
+  }
+  async function renderHome() {
+    if (!S.user) return;
+    const u = S.user;
+    $('#hAvatar').textContent = (u.name || 'T').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+    $('#hName').textContent = u.name || 'Trader';
+    const h = new Date().getHours();
+    $('#hGreet').textContent = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    renderBanners();
+    $('#hQuick').innerHTML = QUICK.filter((q) => !(q[3] === 'real' && u.demo)).map(([ic, label], i) => `<button class="quick" data-q="${i}"><span class="quick-ic">${icon(ic)}</span><span>${label}</span></button>`).join('');
+    $$('#hQuick [data-q]').forEach((b) => b.addEventListener('click', () => QUICK[+b.dataset.q][2]()));
+    const first = S.markets.find((m) => m.symbol === S.symbol) || S.markets[0];
+    $('#hCards').innerHTML = (u.demo
+      ? `<button class="card home-card" data-act="reset"><div><b>Demo balance</b><span class="muted small">Reset back to the starting amount</span></div><span class="hc-ic">${icon('rotate-ccw')}</span></button>`
+      : `<button class="card home-card" data-act="deposit"><div><b>Deposit USDT</b><span class="muted small">Bank transfer${S.settings.deposit_bank ? ` · ${esc(S.settings.deposit_bank.bank_name)}` : ''}</span></div><span class="hc-ic">${icon('landmark')}</span></button>`)
+      + (first ? `<button class="card home-card" data-act="trade"><div><b>Trade ${esc(first.symbol)}</b><span class="muted small">Up to ${first.max_leverage}x · long or short</span></div>${coin(first, 'hc-coin')}</button>` : '');
+    $$('#hCards [data-act]').forEach((b) => b.addEventListener('click', () => {
+      const a = b.dataset.act;
+      if (a === 'deposit') goWallet('deposit'); else if (a === 'reset') { location.hash = 'wallet'; } else goTrade(first.symbol);
+    }));
+    renderHomeLive();
+    await loadSparks();
+    if (S.view === 'home') renderHomeLive();
+  }
+  $$('#hRankTabs button').forEach((b) => b.addEventListener('click', () => {
+    rankMode = b.dataset.r;
+    $$('#hRankTabs button').forEach((x) => x.classList.toggle('active', x === b));
+    renderHomeLive();
+  }));
+  // Search markets
+  function openSearch() {
+    const close = TV.modal(`<div class="search-box"><div class="input-group">${icon('search')}<input class="input" id="sq" placeholder="Search markets" autocomplete="off" /></div><div id="sres" class="search-res"></div></div>`, (m) => {
+      const draw = () => {
+        const q = $('#sq', m).value.trim().toLowerCase();
+        const list = S.markets.filter((x) => !q || x.symbol.toLowerCase().includes(q) || (x.name || '').toLowerCase().includes(q));
+        $('#sres', m).innerHTML = list.length ? list.map((x) => { const c = chg(x); return `<button class="rank-row" data-sym="${esc(x.symbol)}">${coin(x)}<span class="rank-name"><b>${esc(x.symbol)}</b><small>${esc(x.name)}</small></span><span class="num rank-price">${pfmt(x.price, x)}</span><span class="pill num ${c >= 0 ? 'pill-up' : 'pill-down'}">${pct(c)}</span></button>`; }).join('')
+          : '<div class="empty">No markets found</div>';
+        $$('#sres [data-sym]', m).forEach((b) => b.addEventListener('click', () => { close(); goTrade(b.dataset.sym); }));
+      };
+      $('#sq', m).addEventListener('input', draw);
+      draw(); setTimeout(() => $('#sq', m).focus(), 30);
+    });
+  }
+  $('#hSearch').addEventListener('click', openSearch);
 
   // ---------------- notifications ----------------
   const NOTE_ICON = { info: 'info', success: 'circle-check', warning: 'triangle-exclamation-point', alert: 'octagon-exclamation-point' };
