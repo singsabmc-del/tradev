@@ -399,7 +399,7 @@
     route();
     loadBadges();
     setInterval(loadBadges, 20_000);
-    TV.stream({ tick: onTick, order: () => {} });
+    TV.poll({ tick: onTick }, { every: 2000 });
   }
   boot();
 })();

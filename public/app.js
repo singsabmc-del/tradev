@@ -383,7 +383,7 @@
   });
   function renderWallet() { $('#wTx').innerHTML = txTable(S.tx); }
 
-  // ---------------- live stream ----------------
+  // ---------------- live prices ----------------
   function onTick({ prices }) {
     for (const m of S.markets) {
       const p = prices[m.symbol];
@@ -392,6 +392,7 @@
       m.high24h = Math.max(m.high24h, p.p); m.low24h = Math.min(m.low24h, p.p);
       if (m.symbol === S.symbol) {
         const last = S.raw[S.raw.length - 1];
+        if (last && p.k.t - last.t > 120_000) { if (!S.reloading) { S.reloading = true; selectMarket(S.symbol).finally(() => { S.reloading = false; }); } continue; }
         if (last && last.t === p.k.t) Object.assign(last, p.k); else S.raw.push({ ...p.k });
         if (S.tf === 1) chart.update(p.k);
         else {
@@ -408,20 +409,35 @@
     if (S.type === 'market') updateSummary();
     if (S.view === 'markets' && Math.random() < 0.34) renderMarkets();
   }
-  let reloadTimer;
-  function onOrder(o) {
-    if (!S.user || o.user_id !== S.user.id) return;
-    if (o.status === 'closed' && o.close_reason !== 'manual') {
-      const why = { tp: 'Take profit hit', sl: 'Stop loss hit', liquidation: 'Liquidated', admin: 'Closed by admin' }[o.close_reason] || 'Closed';
-      toast(`${why}: ${o.symbol} ${signed(o.pnl)} USDT`, o.result === 'win' ? 'ok' : 'warn');
-    }
-    if (o.status === 'open' && o.type === 'limit' && o.opened_at && Date.now() - Date.parse(o.opened_at) < 5000) toast(`Limit order filled: ${o.symbol} at ${fmt(o.entry_price, o.decimals)}`);
-    clearTimeout(reloadTimer);
-    reloadTimer = setTimeout(async () => {
-      await Promise.all([refreshUser(), loadActive(), S.tab === 'history' || S.view === 'portfolio' ? loadHistory() : null]);
-      renderChartLines();
-      if (S.view === 'portfolio') renderPortfolio();
-    }, 250);
+  // Order updates (fills, TP/SL, liquidations) by polling /api/updates.
+  const seen = new Set();
+  let updatesSince = Date.now();
+  let updatesTimer;
+  async function pollUpdates() {
+    clearTimeout(updatesTimer);
+    try {
+      const u = await api(`/api/updates?since=${updatesSince - 2000}`);
+      updatesSince = u.t;
+      if (S.user && u.balance !== S.user.balance) { S.user.balance = u.balance; refreshUser().catch(() => {}); }
+      let changed = false;
+      for (const o of u.orders.slice().reverse()) {
+        const key = `${o.id}:${o.status}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        changed = true;
+        if (o.status === 'closed' && o.close_reason !== 'manual') {
+          const why = { tp: 'Take profit hit', sl: 'Stop loss hit', liquidation: 'Liquidated', admin: 'Closed by admin' }[o.close_reason] || 'Closed';
+          toast(`${why}: ${o.symbol} ${signed(o.pnl)} USDT`, o.result === 'win' ? 'ok' : 'warn');
+        }
+        if (o.status === 'open' && o.type === 'limit') toast(`Limit order filled: ${o.symbol} at ${fmt(o.entry_price, o.decimals)}`);
+      }
+      if (changed) {
+        await Promise.all([loadActive(), S.tab === 'history' || S.view === 'portfolio' ? loadHistory() : null]);
+        renderChartLines();
+        if (S.view === 'portfolio') renderPortfolio();
+      }
+    } catch { /* offline: try again later */ }
+    updatesTimer = setTimeout(pollUpdates, document.hidden ? 15000 : 3000);
   }
 
   // ---------------- boot ----------------
@@ -437,8 +453,11 @@
     await loadActive();
     renderChartLines();
     showView();
+    // mark what we already know so the first poll doesn't toast old events
+    for (const o of S.active) seen.add(`${o.id}:${o.status}`);
     if (live) live.close();
-    live = TV.stream({ tick: onTick, order: onOrder, status: (ok) => $('#liveDot').classList.toggle('on', ok) });
+    live = TV.poll({ tick: onTick, status: (ok) => $('#liveDot').classList.toggle('on', ok) });
+    pollUpdates();
   }
   boot();
 })();

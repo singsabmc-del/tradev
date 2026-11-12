@@ -35,7 +35,7 @@ TradeV អាចបញ្ជូនទិន្នន័យ **public** ទៅ Goo
    SHEETS_SYNC_SECONDS=60
    SHEETS_INCLUDE_STATS=false
    ```
-   Restart TradeV. The admin **Dashboard** shows `Google Sheets: synced …` and has a **Sync now** button.
+   Redeploy (or restart) TradeV. The admin **Dashboard** shows `Google Sheets: synced …` and has a **Sync now** button.
 
 5. **Make it public / ធ្វើឲ្យ Public** — choose one or both:
    - **Publish to web** (read-only, no Google login needed): **File → Share → Publish to web** → choose the

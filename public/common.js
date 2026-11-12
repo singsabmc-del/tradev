@@ -70,19 +70,27 @@ const TV = (() => {
     });
   }
 
-  // Live stream (prices + own order updates). Auto-reconnects.
-  function stream(handlers) {
-    let es;
-    const connect = () => {
-      const t = store.get();
-      es = new EventSource(`/api/stream${t ? `?token=${encodeURIComponent(t)}` : ''}`);
-      es.addEventListener('tick', (e) => handlers.tick && handlers.tick(JSON.parse(e.data)));
-      es.addEventListener('order', (e) => handlers.order && handlers.order(JSON.parse(e.data)));
-      es.onerror = () => handlers.status && handlers.status(false);
-      es.onopen = () => handlers.status && handlers.status(true);
+  // Live prices by polling /api/ticker (works on serverless hosts; the CDN caches it for 1s).
+  // Slows down while the tab is hidden.
+  function poll(handlers, { every = 1500, hiddenEvery = 10000 } = {}) {
+    let timer = null, stopped = false, busy = false;
+    const run = async () => {
+      if (stopped) return;
+      if (!busy) {
+        busy = true;
+        try {
+          const res = await fetch('/api/ticker');
+          if (!res.ok) throw new Error(res.status);
+          handlers.tick && handlers.tick(await res.json());
+          handlers.status && handlers.status(true);
+        } catch { handlers.status && handlers.status(false); }
+        busy = false;
+      }
+      timer = setTimeout(run, document.hidden ? hiddenEvery : every);
     };
-    connect();
-    return { reconnect: () => { es.close(); connect(); }, close: () => es.close() };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && !stopped) { clearTimeout(timer); run(); } });
+    run();
+    return { close: () => { stopped = true; clearTimeout(timer); } };
   }
 
   async function withBusy(btn, fn) {
@@ -104,5 +112,5 @@ const TV = (() => {
     logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>',
   };
 
-  return { api, store, fmt, money, signed, pct, cls, time, esc, badge, toast, modal, confirmBox, stream, withBusy, ICONS };
+  return { api, store, fmt, money, signed, pct, cls, time, esc, badge, toast, modal, confirmBox, poll, withBusy, ICONS };
 })();
