@@ -106,6 +106,28 @@ test/                e2e.test.js
 vercel.json          routing, function config, daily cron, security headers
 ```
 
+## Live prices from exchanges
+Each market has a **price source** (Admin → Markets → Edit / New market):
+
+| Source | Symbol example | Notes |
+|---|---|---|
+| Simulated | — | random walk with your volatility / trend |
+| Binance | `BTCUSDT` | via the public market-data endpoint `data-api.binance.vision` |
+| Bybit | `BTCUSDT` | spot |
+| OKX | `BTC-USDT` | |
+| Coinbase | `BTC-USD` | |
+| Kraken | `XBTUSD` | |
+| Custom JSON URL | any `https://` URL + path such as `data.price` | for forex, gold, stocks or your own API |
+
+No API keys are needed. Live markets import real 1-minute history when created, and every update pulls the
+exchange's real candles since the last one, so TP / SL / liquidation trigger on real highs and lows even after
+nobody was online (catch-up is limited to the last 5–16 hours depending on the exchange). The admin can't set the
+price of a live market; switch it back to Simulated for that. If an exchange is unreachable the site keeps
+working, new orders on that market are refused with a clear message, and the Markets page shows the error.
+
+`vercel.json` runs the function in **Singapore (`sin1`)**: several exchanges block US servers, and it is close to
+Firestore in asia-southeast.
+
 ## Icons
 UI icons are from [Lucide](https://lucide.dev) (ISC license), packed into `public/icons.js` by
 `scripts/build-icons.js` — no runtime CDN. To add an icon, add its name to the list in that script and re-run it.

@@ -188,6 +188,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .search .input { padding-left: 36px; min-width: 260px; }
 .nav-item svg { stroke-width: 1.75; }
 
+.src { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line2); white-space: nowrap; }
+.src.live { color: var(--green); border-color: rgba(25, 227, 125, .3); background: rgba(25, 227, 125, .07); }
+.src.live .dim { color: var(--muted); }
+.src.sim { color: var(--muted); }
+.live-box { border: 1px solid var(--line2); border-radius: 14px; padding: 14px 14px 10px; margin-bottom: 12px; background: rgba(0,0,0,.15); }
+.live-box .hint { margin: 0; }
+.src-result { min-height: 22px; margin-top: 8px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+
 /* language switch */
 .lang-seg button { padding: 5px 12px; font-size: 12.5px; }
 .lang-row { display: flex; justify-content: center; margin: -2px 0 14px; }

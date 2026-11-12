@@ -11,6 +11,8 @@ const APP_PORT = 56000 + (process.pid % 1000);
 const URL_ = `http://127.0.0.1:${APP_PORT}`;
 const SHEET_PORT = 57000 + (process.pid % 1000);
 const MOCK_PORT = 58000 + (process.pid % 1000);
+const EX_PORT = 59000 + (process.pid % 1000);
+const EX = `http://127.0.0.1:${EX_PORT}`;
 const fkey = (id) => String(9_999_999_999 - Number(id)).padStart(10, '0');
 const procs = [];
 const sheetPayloads = [];
@@ -37,6 +39,8 @@ let admin, alice;
 before(async () => {
   procs.push(spawn('node', [path.join(ROOT, 'scripts/firestore-mock.js')], { env: { ...process.env, MOCK_PORT }, stdio: 'ignore' }));
   await waitFor(() => fetch(`http://127.0.0.1:${MOCK_PORT}/`).then(() => true));
+  procs.push(spawn('node', [path.join(__dirname, 'exchange-mock.js')], { env: { ...process.env, EXCHANGE_MOCK_PORT: EX_PORT }, stdio: 'ignore' }));
+  await waitFor(() => fetch(`${EX}/x`).then(() => true));
 
   // Fake Google Apps Script web app: POST /exec answers 302 -> GET /echo (like the real one)
   sheetServer = require('node:http').createServer((req, res) => {
@@ -53,7 +57,8 @@ before(async () => {
 
   const appEnv = (port) => ({
     ...process.env,
-    FIRESTORE_EMULATOR_HOST: `127.0.0.1:${MOCK_PORT}`, FIREBASE_PROJECT_ID: 'demo-tradev', FIREBASE_SERVICE_ACCOUNT: '',
+    FIRESTORE_EMULATOR_HOST: `127.0.0.1:${MOCK_PORT}`, FIREBASE_PROJECT_ID: 'demo-tradev', FIREBASE_SERVICE_ACCOUNT: '', FEED_ALLOW_HTTP: '1',
+    FEED_URL_BINANCE: `${EX}/binance`, FEED_URL_BYBIT: `${EX}/bybit`, FEED_URL_OKX: `${EX}/okx`, FEED_URL_COINBASE: `${EX}/coinbase`, FEED_URL_KRAKEN: `${EX}/kraken`,
     JWT_SECRET: 'test-secret', ADMIN_EMAIL: 'admin@test.io', ADMIN_PASSWORD: 'AdminPass123', PORT: port, STARTING_BALANCE: '1000',
     CRON_SECRET: 'cron-secret', LOCAL_TICK_MS: '0', ADVANCE_MIN_SECONDS: '1',
     SHEETS_WEBHOOK_URL: `http://127.0.0.1:${SHEET_PORT}/exec`, SHEETS_SECRET: 'sheet-secret', SHEETS_SYNC_SECONDS: '1', SHEETS_INCLUDE_STATS: 'true',
@@ -332,4 +337,85 @@ test('login throttling is shared across instances', async () => {
   }
   const r = await call('/api/auth/login', { method: 'POST', body: { email: 'nobody@test.io', password: 'x' } });
   assert.equal(r.status, 429);
+});
+
+// ---------------- live price sources ----------------
+const exSet = (symbol, price) => fetch(`${EX}/__set`, { method: 'POST', body: JSON.stringify({ symbol, price }) });
+const exFail = (on) => fetch(`${EX}/__fail`, { method: 'POST', body: JSON.stringify({ on }) });
+const liveId = async (symbol) => (await call('/api/admin/markets', { token: admin })).data.find((m) => m.symbol === symbol).id;
+
+test('admin can test every exchange source and a custom JSON URL', async () => {
+  await exSet('BTCUSDT', 70100); await exSet('BTC-USDT', 70200); await exSet('BTC-USD', 70300); await exSet('XBTUSD', 70400); await exSet('GOLD', 2650.5);
+  const cases = [
+    [{ source: 'binance', source_symbol: 'BTCUSDT' }, 70200], [{ source: 'bybit', source_symbol: 'BTCUSDT' }, 70200], // same series as BTC-USDT in the mock
+    [{ source: 'okx', source_symbol: 'BTC-USDT' }, 70200], [{ source: 'coinbase', source_symbol: 'BTC-USD' }, 70300],
+    [{ source: 'kraken', source_symbol: 'XBTUSD' }, 70400],
+    [{ source: 'custom', source_url: `${EX}/custom/price?sym=GOLD`, source_path: 'data.price' }, 2650.5],
+  ];
+  for (const [body, price] of cases) {
+    const r = await call('/api/admin/feeds/test', { method: 'POST', token: admin, body });
+    assert.equal(r.status, 200, `${body.source}: ${JSON.stringify(r.data)}`);
+    assert.equal(r.data.price, price, body.source);
+  }
+  const bad = await call('/api/admin/feeds/test', { method: 'POST', token: admin, body: { source: 'binance', source_symbol: 'NOPEUSDT' } });
+  assert.equal(bad.status, 400);
+  assert.match(bad.data.error, /Binance/);
+  assert.equal((await call('/api/admin/feeds/test', { method: 'POST', token: alice, body: { source: 'binance', source_symbol: 'BTCUSDT' } })).status, 403);
+});
+
+test('live market: created from the exchange with real history, price follows the exchange', async () => {
+  await exSet('LIVEUSDT', 250);
+  const r = await call('/api/admin/markets', { method: 'POST', token: admin, body: { symbol: 'LIVE/USDT', name: 'Live coin', source: 'binance', source_symbol: 'LIVEUSDT', max_leverage: 20 } });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.equal(r.data.price, 250);
+  assert.equal(r.data.source, 'binance');
+  assert.equal(r.data.decimals, 2);
+  assert.ok((await call('/api/candles?symbol=LIVE/USDT&limit=1000')).data.length >= 600, 'real history imported');
+  await exSet('LIVEUSDT', 262.5);
+  await sleep(1100);
+  const t = await waitFor(async () => { const d = (await call('/api/ticker')).data; return d.prices['LIVE/USDT'].p === 262.5 && d; });
+  assert.equal(t.prices['LIVE/USDT'].k.c, 262.5);
+  const manual = await call(`/api/admin/markets/${r.data.id}`, { method: 'PATCH', token: admin, body: { price: 1 } });
+  assert.equal(manual.status, 400);
+  assert.match(manual.data.error, /Binance/);
+});
+
+test('live market: TP uses the exchange high; extremes from before the order opened are ignored', async () => {
+  await exSet('LIVEUSDT', 180); await exSet('LIVEUSDT', 200); // this minute already dipped to 180
+  await sleep(1100);
+  const o = (await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'LIVE/USDT', side: 'long', type: 'market', margin: 10, leverage: 5, sl: 190, tp: 210 } })).data;
+  assert.equal(o.entry_price, 200);
+  await sleep(1100);
+  let active = (await call('/api/orders?scope=active', { token: alice })).data;
+  assert.ok(active.find((x) => x.id === o.id && x.status === 'open'), 'not stopped out by the low from before it opened');
+  await exSet('LIVEUSDT', 215);
+  await sleep(1100);
+  const closed = await waitFor(async () => (await call('/api/orders?scope=history', { token: alice })).data.find((x) => x.id === o.id));
+  assert.equal(closed.close_reason, 'tp');
+  assert.equal(closed.exit_price, 210);
+});
+
+test('switching an existing market to a live source and back', async () => {
+  await exSet('ETHUSDT', 3333);
+  const id = await liveId('ETH/USDT');
+  const r = await call(`/api/admin/markets/${id}`, { method: 'PATCH', token: admin, body: { source: 'binance', source_symbol: 'ETHUSDT' } });
+  assert.equal(r.status, 200, JSON.stringify(r.data));
+  assert.equal(r.data.price, 3333);
+  const back = await call(`/api/admin/markets/${id}`, { method: 'PATCH', token: admin, body: { source: 'sim' } });
+  assert.equal(back.data.source, 'sim');
+  assert.equal((await call(`/api/admin/markets/${id}`, { method: 'PATCH', token: admin, body: { price: 3000, volatility: 0, drift: 0 } })).status, 200);
+});
+
+test('exchange outage: site keeps working, orders on that market are refused with a clear message', async () => {
+  await exFail(true);
+  await sleep(1100);
+  try {
+    const t = await call('/api/ticker');
+    assert.equal(t.status, 200);
+    const o = await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'LIVE/USDT', side: 'long', type: 'market', margin: 10, leverage: 2 } });
+    assert.equal(o.status, 503);
+    assert.match(o.data.error, /Live price unavailable/);
+    const m = (await call('/api/admin/markets', { token: admin })).data.find((x) => x.symbol === 'LIVE/USDT');
+    assert.ok(m.feed_error && m.feed_error.message);
+  } finally { await exFail(false); }
 });

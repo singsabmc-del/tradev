@@ -156,23 +156,31 @@
   // ---------- markets ----------
   async function viewMarkets() {
     main.innerHTML = title('Markets', `<button class="btn btn-green btn-icon" id="newMarket">${icon('plus')}<span>New market</span></button>`) +
-      '<p class="hint">Volatility is the per-second standard deviation of price moves; drift biases the trend (positive = up). Changing the price moves the live market instantly.</p>' +
+      '<p class="hint">Each market follows a real exchange (Binance, Bybit, OKX, Coinbase, Kraken or any JSON price API) or a simulation. For simulated markets, volatility is the per-second standard deviation of price moves and drift biases the trend (positive = up).</p>' +
       '<div class="card"><div class="table-wrap" id="mTable"><div class="empty">Loading…</div></div></div>';
     $('#newMarket').addEventListener('click', () => marketForm());
-    S.markets = await api('/api/admin/markets');
+    [S.markets, S.sources] = await Promise.all([api('/api/admin/markets'), api('/api/admin/feeds')]);
     renderMarkets();
   }
+  const srcLabel = (m) => {
+    if (!m.source || m.source === 'sim') return '<span class="src sim">Simulated</span>';
+    const label = (S.sources && S.sources[m.source] ? S.sources[m.source].label : m.source);
+    const what = m.source === 'custom' ? (() => { try { return new URL(m.source_url).host; } catch { return 'URL'; } })() : m.source_symbol;
+    const err = m.feed_error ? ` <span class="down" title="${esc(m.feed_error.message)}">${icon('circle-exclamation-point')}</span>` : '';
+    return `<span class="src live">${icon('zap')}<span>${esc(label)}</span><span class="dim">· ${esc(what)}</span></span>${err}`;
+  };
   function renderMarkets() {
     const box = $('#mTable');
     if (!box) return;
-    box.innerHTML = `<table class="tbl"><thead><tr><th>Market</th><th class="r">Price</th><th class="r">24h</th><th class="r">Volatility</th><th class="r">Drift</th><th class="r">Max lev.</th><th class="r">Fee</th><th class="r">Min margin</th><th>Status</th><th></th></tr></thead><tbody>
-      ${S.markets.map((m) => `<tr><td><b>${esc(m.symbol)}</b> <span class="dim">${esc(m.name)}</span></td>
+    box.innerHTML = `<table class="tbl"><thead><tr><th>Market</th><th>Price source</th><th class="r">Price</th><th class="r">24h</th><th class="r">Volatility</th><th class="r">Drift</th><th class="r">Max lev.</th><th class="r">Fee</th><th class="r">Min margin</th><th>Status</th><th></th></tr></thead><tbody>
+      ${S.markets.map((m) => { const live = m.source && m.source !== 'sim'; return `<tr><td><b>${esc(m.symbol)}</b> <span class="dim">${esc(m.name)}</span></td>
+        <td>${srcLabel(m)}</td>
         <td class="r num" data-mp="${esc(m.symbol)}">${fmt(m.price, m.decimals)}</td><td class="r num ${cls(m.change24h)}">${pct(m.change24h)}</td>
-        <td class="r num">${m.volatility}</td><td class="r num ${cls(m.drift)}">${m.drift}</td><td class="r num">${m.max_leverage}x</td>
+        <td class="r num">${live ? '—' : m.volatility}</td><td class="r num ${live ? '' : cls(m.drift)}">${live ? '—' : m.drift}</td><td class="r num">${m.max_leverage}x</td>
         <td class="r num">${(m.fee_rate * 100).toFixed(3)}%</td><td class="r num">${fmt(m.min_margin)}</td>
         <td>${badge(m.enabled ? 'active' : 'suspended')}</td>
         <td class="r"><button class="btn btn-sm btn-icon" data-edit="${m.id}">${icon('pencil')}<span>Edit</span></button>
-          <button class="btn btn-sm ${m.enabled ? 'btn-ghost-red' : 'btn-ghost-green'}" data-toggle="${m.id}">${m.enabled ? 'Disable' : 'Enable'}</button></td></tr>`).join('')}
+          <button class="btn btn-sm ${m.enabled ? 'btn-ghost-red' : 'btn-ghost-green'}" data-toggle="${m.id}">${m.enabled ? 'Disable' : 'Enable'}</button></td></tr>`; }).join('')}
       </tbody></table>`;
     box.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => marketForm(S.markets.find((m) => m.id === +b.dataset.edit))));
     box.querySelectorAll('[data-toggle]').forEach((b) => b.addEventListener('click', async () => {
@@ -182,23 +190,64 @@
       S.markets = await api('/api/admin/markets'); renderMarkets();
     }));
   }
-  function marketForm(m) {
-    const f = (name, label, val, attrs = '') => `<label class="field"><span>${label}</span><input class="input num" name="${name}" value="${esc(val ?? '')}" ${attrs} /></label>`;
+  async function marketForm(m) {
+    if (!S.sources) S.sources = await api('/api/admin/feeds');
+    const src = (m && m.source) || 'sim';
+    const f = (name, label, val, attrs = '', cls = 'num') => `<label class="field" data-f="${name}"><span>${label}</span><input class="input ${cls}" name="${name}" value="${esc(val ?? '')}" ${attrs} /></label>`;
     modal(`<h2>${m ? `Edit ${esc(m.symbol)}` : 'New market'}</h2><form id="mf">
       ${m ? '' : f('symbol', 'Symbol (BASE/QUOTE)', '', 'placeholder="DOGE/USDT" required')}
-      ${f('name', 'Display name', m?.name)}
-      <div class="grid2">${f('price', m ? 'Price (set to move market)' : 'Starting price', m ? m.price : '', 'required')}${f('decimals', 'Price decimals', m?.decimals ?? 2)}</div>
-      <div class="grid2">${f('volatility', 'Volatility (per second)', m?.volatility ?? 0.0005)}${f('drift', 'Drift / trend (per second)', m?.drift ?? 0)}</div>
+      ${f('name', 'Display name', m?.name, '', '')}
+      <label class="field"><span>Price source</span><select class="input" name="source">
+        ${Object.entries(S.sources).map(([k, v]) => `<option value="${k}" ${k === src ? 'selected' : ''}>${esc(v.label)}</option>`).join('')}
+      </select></label>
+      <div class="live-box" id="liveBox">
+        ${f('source_symbol', 'Symbol on the exchange', m?.source_symbol, 'autocomplete="off"', '')}
+        ${f('source_url', 'URL that returns the price (JSON)', m?.source_url, 'placeholder="https://api.example.com/price?symbol=XAUUSD" autocomplete="off"', '')}
+        ${f('source_path', 'Path to the price in the JSON', m?.source_path, 'placeholder="data.price"', '')}
+        <div class="row between"><span class="hint" id="srcHint"></span><button type="button" class="btn btn-sm btn-icon" id="srcTest">${icon('refresh-cw')}<span>Test source</span></button></div>
+        <div class="src-result" id="srcResult"></div>
+      </div>
+      <div class="grid2">${f('price', m ? 'Price (set to move market)' : 'Starting price', m ? m.price : '')}${f('decimals', 'Price decimals', m?.decimals ?? '', 'placeholder="auto"')}</div>
+      <div class="grid2" data-sim-only>${f('volatility', 'Volatility (per second)', m?.volatility ?? 0.0005)}${f('drift', 'Drift / trend (per second)', m?.drift ?? 0)}</div>
       <div class="grid2">${f('max_leverage', 'Max leverage', m?.max_leverage ?? 50)}${f('fee_rate', 'Fee rate (0.0005 = 0.05%)', m?.fee_rate ?? 0.0005)}</div>
       ${f('min_margin', 'Minimum margin (USDT)', m?.min_margin ?? 1)}
       <label class="row mb"><label class="switch"><input type="checkbox" name="enabled" ${!m || m.enabled ? 'checked' : ''}/><span></span></label> Enabled for trading</label>
       <div class="actions"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-green" id="mSave">${m ? 'Save changes' : 'Create market'}</button></div></form>`,
     (el, close) => {
-      $('#mf', el).addEventListener('submit', async (e) => {
+      const form = $('#mf', el);
+      const sync = () => {
+        const s = form.source.value, live = s !== 'sim', custom = s === 'custom';
+        $('#liveBox', el).classList.toggle('hidden', !live);
+        el.querySelector('[data-f=source_symbol]').classList.toggle('hidden', !live || custom);
+        el.querySelector('[data-f=source_url]').classList.toggle('hidden', !custom);
+        el.querySelector('[data-f=source_path]').classList.toggle('hidden', !custom);
+        el.querySelector('[data-f=price]').classList.toggle('hidden', live);
+        el.querySelector('[data-sim-only]').classList.toggle('hidden', live);
+        form.source_symbol.placeholder = live && !custom ? `e.g. ${S.sources[s].example}` : '';
+        $('#srcHint', el).textContent = !live ? '' : custom ? 'Any API that returns JSON with the price' : `Real 1-minute prices from ${S.sources[s].label}`;
+        $('#srcResult', el).innerHTML = '';
+      };
+      form.source.addEventListener('change', sync);
+      sync();
+      const sourceBody = () => ({ source: form.source.value, source_symbol: form.source_symbol.value, source_url: form.source_url.value, source_path: form.source_path.value });
+      $('#srcTest', el).addEventListener('click', async (e) => {
+        const out = $('#srcResult', el);
+        try {
+          const r = await withBusy(e.currentTarget, () => api('/api/admin/feeds/test', { method: 'POST', body: sourceBody() }));
+          out.innerHTML = `<span class="up">${icon('circle-check')}</span> <span>Live price</span> <b class="num">${fmt(r.price, r.decimals)}</b>`;
+          if (!form.decimals.value) form.decimals.value = r.decimals;
+        } catch (err) { out.innerHTML = `<span class="down">${icon('circle-exclamation-point')} ${esc(err.message)}</span>`; }
+      });
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const body = Object.fromEntries(new FormData(e.target));
-        body.enabled = !!e.target.enabled.checked;
-        if (m && Number(body.price) === Number(m.price)) delete body.price;
+        const body = Object.fromEntries(new FormData(form));
+        body.enabled = !!form.enabled.checked;
+        const live = body.source !== 'sim';
+        if (live) { delete body.price; delete body.volatility; delete body.drift; }
+        if (body.source !== 'custom') { delete body.source_url; delete body.source_path; }
+        if (!live || body.source === 'custom') delete body.source_symbol;
+        if (m && body.price !== undefined && Number(body.price) === Number(m.price)) delete body.price;
+        if (!m && !live && !body.price) return toast('Starting price is required', 'err');
         try {
           await withBusy($('#mSave', el), () => api(m ? `/api/admin/markets/${m.id}` : '/api/admin/markets', { method: m ? 'PATCH' : 'POST', body }));
           toast(m ? 'Market updated' : 'Market created');

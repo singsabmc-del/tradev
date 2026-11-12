@@ -122,6 +122,15 @@ const I18N = (() => {
     'Enter a non-zero amount': 'กรุณาใส่จำนวนที่ไม่เป็นศูนย์', 'You cannot suspend or demote yourself': 'คุณไม่สามารถระงับหรือลดสิทธิ์ตัวเองได้',
     'Symbol must look like BTC/USDT': 'สัญลักษณ์ต้องอยู่ในรูปแบบ BTC/USDT', 'Market already exists': 'มีตลาดนี้อยู่แล้ว',
     'Starting price is required': 'ต้องระบุราคาเริ่มต้น', 'Nothing to update': 'ไม่มีอะไรให้อัปเดต',
+    // price sources
+    'Price source': 'แหล่งราคา', 'Simulated': 'จำลอง', 'Custom JSON URL': 'URL JSON กำหนดเอง',
+    'Symbol on the exchange': 'สัญลักษณ์บนกระดานเทรด', 'URL that returns the price (JSON)': 'URL ที่ส่งคืนราคา (JSON)',
+    'Path to the price in the JSON': 'ตำแหน่งของราคาใน JSON', 'Test source': 'ทดสอบแหล่งราคา', 'Live price': 'ราคาสด',
+    'Any API that returns JSON with the price': 'API ใดก็ได้ที่ส่งคืน JSON พร้อมราคา', 'auto': 'อัตโนมัติ',
+    'Choose a live price source to test': 'กรุณาเลือกแหล่งราคาสดเพื่อทดสอบ', 'Enter the URL that returns the price': 'กรุณาใส่ URL ที่ส่งคืนราคา',
+    'Invalid source symbol': 'สัญลักษณ์แหล่งราคาไม่ถูกต้อง', 'Invalid source URL': 'URL แหล่งราคาไม่ถูกต้อง', 'Unknown price source': 'ไม่รู้จักแหล่งราคานี้',
+    'Each market follows a real exchange (Binance, Bybit, OKX, Coinbase, Kraken or any JSON price API) or a simulation. For simulated markets, volatility is the per-second standard deviation of price moves and drift biases the trend (positive = up).':
+      'แต่ละตลาดใช้ราคาจริงจากกระดานเทรด (Binance, Bybit, OKX, Coinbase, Kraken หรือ API ราคาแบบ JSON ใดก็ได้) หรือราคาจำลอง สำหรับตลาดจำลอง ความผันผวนคือส่วนเบี่ยงเบนมาตรฐานของการเปลี่ยนแปลงราคาต่อวินาที และแนวโน้ม (drift) กำหนดทิศทาง (ค่าบวก = ขึ้น)',
   };
 
   // Texts containing numbers or names.
@@ -157,6 +166,11 @@ const I18N = (() => {
     [/^joined (.+) · last login (.+)$/, 'สมัคร $1 · เข้าระบบล่าสุด $2'],
     [/^(.+) · #(\d+) · joined (.+) · last login (.+)$/, '$1 · #$2 · สมัคร $3 · เข้าระบบล่าสุด $4'],
     [/^Google Sheets: (.+)$/, 'Google Sheets: $1'],
+    [/^Real 1-minute prices from (.+)$/, 'ราคาจริงราย 1 นาทีจาก $1'],
+    [/^e\.g\. (.+)$/, 'เช่น $1'],
+    [/^Live price unavailable: (.+)$/, 'ไม่สามารถดึงราคาสดได้: $1'],
+    [/^Price comes from (.+); switch the source to Simulated to set it by hand$/, 'ราคามาจาก $1 — เปลี่ยนแหล่งราคาเป็น "จำลอง" หากต้องการตั้งราคาเอง'],
+    [/^Enter the (.+) symbol, e\.g\. (.+)$/, 'กรุณาใส่สัญลักษณ์ของ $1 เช่น $2'],
   ];
 
   const KEY = 'tradev_lang';
