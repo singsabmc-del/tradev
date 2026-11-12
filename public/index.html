@@ -16,7 +16,9 @@
       <div class="brand">trade<span class="x">V</span></div>
       <div class="lang-row"><div data-lang-switch></div></div>
       <p class="lead" id="authLead">Sign in to start trading</p>
+      <div class="announce hidden"></div>
       <div class="seg full mb"><button data-auth="login" class="active">Log in</button><button data-auth="register">Create account</button></div>
+      <p class="muted small center hidden" id="regClosed">New registrations are currently closed.</p>
       <form id="authForm" autocomplete="on">
         <label class="field hidden" id="nameField"><span>Full name</span><input class="input" name="name" autocomplete="name" /></label>
         <label class="field"><span>Email</span><input class="input" name="email" type="email" required autocomplete="email" /></label>
@@ -53,6 +55,7 @@
       <div data-lang-switch></div>
     </header>
     <main class="main">
+      <div class="announce hidden"></div>
       <!-- TRADE -->
       <section id="view-trade" class="view">
         <div class="trade-grid">
@@ -137,6 +140,7 @@
               <div><span>Fee</span><b class="num" id="sFee">—</b></div>
               <div><span>Total cost</span><b class="num" id="sCost">—</b></div>
             </div>
+            <div class="notice warn hidden" id="tradingPaused"><i data-icon="info"></i><span>Trading is paused</span></div>
             <a href="#wallet" class="bank-needed hidden" id="bankNeeded"><i data-icon="landmark"></i><span>Add a bank account to start trading</span></a>
             <button class="btn btn-green btn-block btn-icon" id="submitOrder"><i data-icon="trending-up"></i><span>Buy / Long</span></button>
             <p class="dim small center" id="orderHint"></p>
@@ -168,11 +172,13 @@
             <div class="big-price num" id="wBal">—</div>
             <p class="muted small">Deposits are credited after an administrator approves them. Withdrawals are held from your balance until processed.</p>
             <div class="seg full mt" id="wSeg"><button data-w="deposit" class="active"><i data-icon="arrow-down-to-line"></i>Deposit</button><button data-w="withdraw"><i data-icon="arrow-up-from-line"></i>Withdraw</button></div>
+            <div id="walletInfo" class="mt"></div>
             <form id="wForm" class="mt">
               <label class="field"><span>Amount (USDT)</span><input class="input num" id="wAmount" inputmode="decimal" required /></label>
               <label class="field"><span>Note (optional)</span><input class="input" id="wNote" maxlength="80" placeholder="e.g. bank transfer ref" /></label>
               <button class="btn btn-green btn-block" id="wBtn">Request deposit</button>
             </form>
+            <p class="small muted lbl hidden" id="supportLine"></p>
           </div>
           </div>
           <div class="card"><div class="card-pad"><h3>Transactions</h3></div><div class="table-wrap" id="wTx"></div></div>

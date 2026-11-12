@@ -466,3 +466,50 @@ test('withdrawals record the bank account; admin sees full details and can edit 
   assert.equal((await call('/api/wallet/deposit', { method: 'POST', token: alice, body: { amount: 1 } })).data.code, 'BANK_REQUIRED');
   await call('/api/me/bank', { method: 'PUT', token: alice, body: { bank_name: 'Kasikornbank', account_name: 'Alice Test', account_number: '1234567890' } });
 });
+
+test('system settings: admin-only, validated, and enforced on registration, trading and the wallet', async () => {
+  assert.equal((await call('/api/admin/settings', { method: 'PUT', token: alice, body: { trading_enabled: false } })).status, 403);
+  const before = (await call('/api/admin/settings', { token: admin })).data;
+  assert.equal(before.settings.registration_open, true);
+  assert.equal((await call('/api/admin/settings', { method: 'PUT', token: admin, body: { min_deposit: 50, max_deposit: 20 } })).status, 400);
+
+  const put = await call('/api/admin/settings', { method: 'PUT', token: admin, body: {
+    site_name: 'TradeV Test', announcement: 'Maintenance tonight', registration_open: false, trading_enabled: false,
+    min_deposit: 20, max_withdrawal: 100, max_open_positions: 1,
+    deposit_bank: { bank_name: 'ABA Bank', account_name: 'TradeV Co', account_number: '111222333', instructions: 'Use your email' },
+  } });
+  assert.equal(put.status, 200);
+
+  const pub = (await call('/api/settings')).data;
+  assert.equal(pub.site_name, 'TradeV Test');
+  assert.equal(pub.announcement, 'Maintenance tonight');
+  assert.equal(pub.deposit_bank, undefined, 'visitors do not see the company account');
+  const mine = (await call('/api/settings', { token: alice })).data;
+  assert.equal(mine.deposit_bank.account_number, '111222333');
+  assert.equal(mine.min_deposit, 20);
+
+  const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'Late', email: `late${Date.now()}@x.com`, password: 'secret123' } });
+  assert.equal(reg.status, 403);
+  const paused = await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'BTC/USDT', side: 'long', type: 'market', margin: 10, leverage: 2 } });
+  assert.equal(paused.status, 403);
+  assert.equal((await call('/api/wallet/deposit', { method: 'POST', token: alice, body: { amount: 5 } })).status, 400);
+  assert.equal((await call('/api/wallet/withdraw', { method: 'POST', token: alice, body: { amount: 500 } })).status, 400);
+
+  // open positions limit
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { trading_enabled: true } });
+  const open = (await call('/api/orders?status=open', { token: alice })).data.length;
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { max_open_positions: open + 1 } });
+  const o1 = await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'BTC/USDT', side: 'long', type: 'market', margin: 10, leverage: 2 } });
+  assert.equal(o1.status, 200);
+  const o2 = await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'BTC/USDT', side: 'long', type: 'market', margin: 10, leverage: 2 } });
+  assert.equal(o2.status, 400);
+  await call(`/api/orders/${o1.data.id}/close`, { method: 'POST', token: alice });
+
+  // bank requirement can be switched off
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { require_bank_account: false, registration_open: true } });
+  const nb = (await call('/api/auth/register', { method: 'POST', body: { name: 'No Bank', email: `nobank${Date.now()}@x.com`, password: 'secret123' } })).data;
+  assert.equal((await call('/api/wallet/deposit', { method: 'POST', token: nb.token, body: { amount: 25 } })).status, 200);
+
+  // restore defaults for any later tests
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { ...before.settings, updated_at: undefined, updated_by: undefined } });
+});

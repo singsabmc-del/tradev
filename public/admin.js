@@ -25,7 +25,7 @@
   window.addEventListener('tv:logout', () => location.reload());
 
   // ---------- nav ----------
-  const NAV = { dashboard: ['dashboard', 'Dashboard'], markets: ['markets', 'Markets'], customers: ['users', 'Customers'], transactions: ['tx', 'Transactions'], orders: ['orders', 'Orders'] };
+  const NAV = { dashboard: ['dashboard', 'Dashboard'], markets: ['markets', 'Markets'], customers: ['users', 'Customers'], transactions: ['tx', 'Transactions'], orders: ['orders', 'Orders'], settings: ['settings', 'Settings'] };
   for (const [v, [icon, label]] of Object.entries(NAV)) {
     const b = $(`[data-view="${v}"]`);
     b.innerHTML = `${ICONS[icon]}<span>${label}</span><span class="badge pending hidden" data-badge="${v}"></span>`;
@@ -39,7 +39,7 @@
     S.view = NAV[v] ? v : 'dashboard';
     $$('[data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === S.view));
     clearInterval(refreshTimer);
-    ({ dashboard: viewDashboard, markets: viewMarkets, customers: viewCustomers, transactions: viewTransactions, orders: viewOrders })[S.view]();
+    ({ dashboard: viewDashboard, markets: viewMarkets, customers: viewCustomers, transactions: viewTransactions, orders: viewOrders, settings: viewSettings })[S.view]();
   }
 
   const title = (t, right = '') => `<h1 class="page-title">${t}<span style="margin-left:auto" class="row">${right}</span></h1>`;
@@ -424,6 +424,66 @@
     for (const id of ['oStatus', 'oResult', 'oSymbol', 'oSide']) $(`#${id}`).addEventListener('change', load);
     await load();
     refreshTimer = setInterval(() => { if (!$('.overlay')) load().catch(() => {}); }, 15_000);
+  }
+
+  // ---------- system settings ----------
+  async function viewSettings() {
+    main.innerHTML = title('System settings') + '<div id="setBox" class="empty">Loading…</div>';
+    const { settings: st, system: sys } = await api('/api/admin/settings');
+    const tog = (name, label, hint = '') => `<label class="set-toggle"><span><b>${label}</b>${hint ? `<small>${hint}</small>` : ''}</span>
+      <label class="switch"><input type="checkbox" name="${name}" ${st[name] ? 'checked' : ''}/><span></span></label></label>`;
+    const fld = (name, label, val, attrs = '', cls = '') => `<label class="field"><span>${label}</span><input class="input ${cls}" name="${name}" value="${esc(val ?? '')}" ${attrs} /></label>`;
+    const sec = (ic, h, body) => `<section class="card card-pad set-sec"><h3 class="lbl">${icon(ic)}<span>${h}</span></h3>${body}</section>`;
+    const db = st.deposit_bank || {};
+    const yes = (v) => (v ? `<span class="up">${icon('circle-check')}</span>` : `<span class="dim">${icon('circle-x')}</span>`);
+    $('#setBox').outerHTML = `<form id="setForm" class="set-grid">
+      ${sec('megaphone', 'General', `
+        ${fld('site_name', 'Site name', st.site_name, 'maxlength="40"')}
+        <label class="field"><span>Announcement (shown to customers; leave empty to hide)</span><textarea class="input" name="announcement" rows="3" maxlength="300">${esc(st.announcement)}</textarea></label>
+        ${fld('support_contact', 'Support contact (LINE, Telegram, phone or email)', st.support_contact, 'maxlength="120" placeholder="LINE: @tradev"')}`)}
+      ${sec('shield-check', 'Access & trading', `
+        ${tog('registration_open', 'Open registration', 'New customers can create accounts')}
+        ${tog('trading_enabled', 'Trading enabled', 'Turn off to pause new orders (customers can still close positions)')}
+        ${tog('require_bank_account', 'Require bank account', 'Customers must add a bank account before depositing, withdrawing or trading')}
+        <div class="grid2 mt">${fld('starting_balance', 'Welcome balance for new accounts (USDT)', st.starting_balance, 'inputmode="decimal"', 'num')}
+        ${fld('max_open_positions', 'Max open positions per customer (0 = no limit)', st.max_open_positions, 'inputmode="numeric"', 'num')}</div>`)}
+      ${sec('banknote', 'Deposits & withdrawals', `
+        ${tog('deposits_enabled', 'Deposits enabled')}
+        ${tog('withdrawals_enabled', 'Withdrawals enabled')}
+        <div class="grid2 mt">${fld('min_deposit', 'Minimum deposit (USDT)', st.min_deposit, 'inputmode="decimal"', 'num')}${fld('max_deposit', 'Maximum deposit (0 = no limit)', st.max_deposit, 'inputmode="decimal"', 'num')}</div>
+        <div class="grid2">${fld('min_withdrawal', 'Minimum withdrawal (USDT)', st.min_withdrawal, 'inputmode="decimal"', 'num')}${fld('max_withdrawal', 'Maximum withdrawal (0 = no limit)', st.max_withdrawal, 'inputmode="decimal"', 'num')}</div>`)}
+      ${sec('landmark', 'Company deposit account', `
+        <p class="hint" style="margin:0 0 12px">Shown on the customer's deposit form as the account to transfer money to.</p>
+        ${fld('db_bank_name', 'Bank name', db.bank_name, 'maxlength="60"')}
+        <div class="grid2">${fld('db_account_name', 'Account holder name', db.account_name, 'maxlength="80"')}${fld('db_account_number', 'Account number', db.account_number, 'maxlength="40"', 'num')}</div>
+        <label class="field"><span>Instructions for customers</span><textarea class="input" name="db_instructions" rows="2" maxlength="300" placeholder="Use your account email as the transfer reference.">${esc(db.instructions)}</textarea></label>`)}
+      ${sec('server', 'System info', `<div class="sys">
+        <div><span>Database</span><b>${esc(sys.database)}</b></div>
+        <div><span>Service account</span><b class="small">${esc(sys.firebase_account || '—')}</b></div>
+        <div><span>Server region</span><b>${esc(sys.region)}</b></div>
+        <div><span>Price updates saved every</span><b>${sys.advance_seconds} s</b></div>
+        <div><span>Google Sheets sync</span><b>${yes(sys.google_sheets)} ${sys.google_sheets ? `every ${sys.sheets_sync_seconds} s` : ''}</b></div>
+        <div><span>Cron secret set</span><b>${yes(sys.cron_secret)}</b></div>
+        <div><span>Admin account</span><b>${esc(sys.admin_email)}</b></div>
+        <div><span>Version</span><b>${esc(sys.version)}</b></div>
+        <p class="hint" style="margin:10px 0 0">These come from environment variables in Vercel.</p></div>`)}
+      <div class="set-actions"><span class="dim small" id="setSaved">${st.updated_at ? `Last saved ${time(st.updated_at)}` : ''}</span>
+        <button class="btn btn-green btn-icon" id="setSave">${icon('check')}<span>Save settings</span></button></div>
+    </form>`;
+    $('#setForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.target, body = {};
+      for (const el of f.elements) {
+        if (!el.name || el.name.startsWith('db_')) continue;
+        body[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+      }
+      body.deposit_bank = { bank_name: f.db_bank_name.value, account_name: f.db_account_name.value, account_number: f.db_account_number.value, instructions: f.db_instructions.value };
+      try {
+        const r = await withBusy($('#setSave'), () => api('/api/admin/settings', { method: 'PUT', body }));
+        $('#setSaved').textContent = `Last saved ${time(r.settings.updated_at)}`;
+        toast('Settings saved');
+      } catch (err) { toast(err.message, 'err'); }
+    });
   }
 
   // ---------- live ----------

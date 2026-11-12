@@ -63,6 +63,48 @@
   window.addEventListener('tv:lang', () => { if (S.user) { showView(); renderBottom(); } });
 
   // ---------------- data ----------------
+  // ---------------- system settings ----------------
+  S.settings = { require_bank_account: true, trading_enabled: true, registration_open: true };
+  const needBank = () => S.settings.require_bank_account !== false && S.user && !S.user.has_bank;
+  async function loadSettings() {
+    try { S.settings = await api('/api/settings'); } catch { /* keep defaults */ }
+    applySettings();
+  }
+  function applySettings() {
+    const st = S.settings;
+    for (const el of $$('.announce')) {
+      el.classList.toggle('hidden', !st.announcement);
+      el.innerHTML = st.announcement ? `${icon('info')}<span>${esc(st.announcement)}</span>` : '';
+    }
+    const reg = $('[data-auth=register]');
+    reg.classList.toggle('hidden', !st.registration_open);
+    $('#regClosed').classList.toggle('hidden', st.registration_open !== false);
+    if (st.registration_open === false && authMode === 'register') $('[data-auth=login]').click();
+    if (!S.user) return;
+    $('#bankNeeded').classList.toggle('hidden', !needBank());
+    $('#tradingPaused').classList.toggle('hidden', st.trading_enabled !== false);
+    $('#submitOrder').disabled = st.trading_enabled === false;
+    $('#supportLine').classList.toggle('hidden', !st.support_contact);
+    $('#supportLine').innerHTML = st.support_contact ? `${icon('info')}<span>Support:</span> <b>${esc(st.support_contact)}</b>` : '';
+    renderWalletMode();
+  }
+  function renderWalletMode() {
+    const st = S.settings, dep = wMode === 'deposit';
+    const enabled = dep ? st.deposits_enabled !== false : st.withdrawals_enabled !== false;
+    const min = dep ? st.min_deposit : st.min_withdrawal, max = dep ? st.max_deposit : st.max_withdrawal;
+    const limits = [min ? `min ${fmt(min)}` : '', max ? `max ${fmt(max)}` : ''].filter(Boolean).join(' · ');
+    let html = '';
+    if (!enabled) html = `<div class="notice warn">${icon('info')}<span>${dep ? 'Deposits are currently disabled' : 'Withdrawals are currently disabled'}</span></div>`;
+    else if (dep && st.deposit_bank) {
+      const b = st.deposit_bank;
+      html = `<div class="pay-to"><div class="lbl small muted">${icon('landmark')}<span>Transfer to</span></div>
+        <div class="bank-line"><b>${esc(b.bank_name)}</b><span>${esc(b.account_name)}</span><span class="num big-num">${esc(b.account_number)}</span></div>
+        ${b.instructions ? `<p class="muted small">${esc(b.instructions)}</p>` : ''}</div>`;
+    } else if (!dep && S.user && S.user.bank) html = `<p class="muted small">${icon('landmark')} <span>Paid to</span> ${esc(S.user.bank.bank_name)} · ${esc(S.user.bank.account_number)}</p>`;
+    $('#walletInfo').innerHTML = html + (limits && enabled ? `<p class="dim small">${limits} USDT</p>` : '');
+    $('#wForm').classList.toggle('locked', !enabled || needBank());
+  }
+
   async function refreshUser() {
     S.user = await api('/api/me');
     $('#uName').textContent = S.user.name || 'Trader';
@@ -71,7 +113,7 @@
     $('#avail').textContent = `${fmt(S.user.balance)} USDT`;
     $('#wBal').textContent = money(S.user.balance);
     $('#adminLink').classList.toggle('hidden', S.user.role !== 'admin');
-    $('#bankNeeded').classList.toggle('hidden', S.user.has_bank);
+    $('#bankNeeded').classList.toggle('hidden', !needBank());
     renderBank();
     updateSummary();
   }
@@ -89,7 +131,7 @@
     const box = $('#bankCard');
     if (!box || !S.user) return;
     const b = S.user.bank;
-    $('#wForm').classList.toggle('locked', !S.user.has_bank);
+    if ($('#walletInfo')) renderWalletMode();
     if (b && !bankEditing) {
       box.classList.remove('needed');
       box.innerHTML = `<div class="row between"><h3 class="lbl" style="margin:0">${icon('landmark')}<span>Bank account</span></h3>
@@ -98,9 +140,9 @@
       $('#bankEdit').onclick = () => { bankEditing = true; renderBank(); };
       return;
     }
-    box.classList.toggle('needed', !b);
+    box.classList.toggle('needed', needBank());
     box.innerHTML = `<h3 class="lbl">${icon('landmark')}<span>${b ? 'Change bank account' : 'Add your bank account'}</span></h3>
-      ${b ? '' : '<p class="muted small" style="margin-top:-4px">Required before you can deposit, withdraw or trade. Withdrawals are paid to this account.</p>'}
+      ${b ? '' : needBank() ? '<p class="muted small" style="margin-top:-4px">Required before you can deposit, withdraw or trade. Withdrawals are paid to this account.</p>' : '<p class="muted small" style="margin-top:-4px">Withdrawals are paid to this account.</p>'}
       <form id="bankForm">
         <label class="field"><span>Bank name</span><input class="input" name="bank_name" list="bankList" required maxlength="60" value="${esc(b ? b.bank_name : '')}" autocomplete="off" /></label>
         <label class="field"><span>Account holder name</span><input class="input" name="account_name" required maxlength="80" value="${esc(b ? b.account_name : S.user.name || '')}" /></label>
@@ -133,7 +175,7 @@
     $('#coinIcon').style.background = `linear-gradient(135deg, ${a}, ${b})`;
     $('#coinIcon').textContent = m.base[0];
     $('#limitQuote').textContent = m.quote;
-    document.title = `${pfmt(m.price)} ${m.symbol} — TradeV`;
+    document.title = `${pfmt(m.price)} ${m.symbol} — ${S.settings.site_name || 'TradeV'}`;
     renderLeverage();
     S.raw = await api(`/api/candles?symbol=${encodeURIComponent(symbol)}&limit=1500`);
     chart.setData(aggregateCandles(S.raw, S.tf), m.decimals);
@@ -257,7 +299,8 @@
       margin: $('#margin').value, limitPrice: $('#limitPrice').value,
       tp: $('#tpOn').checked ? $('#tp').value : null, sl: $('#slOn').checked ? $('#sl').value : null,
     };
-    if (!S.user.has_bank) return goBank('Add your bank account first');
+    if (needBank()) return goBank('Add your bank account first');
+    if (S.settings.trading_enabled === false) return toast('Trading is paused', 'warn');
     if (!(+body.margin > 0)) return toast('Enter a margin amount', 'err');
     try {
       await withBusy($('#submitOrder'), async () => {
@@ -417,10 +460,11 @@
     wMode = b.dataset.w;
     $$('[data-w]').forEach((x) => x.classList.toggle('active', x === b));
     $('#wBtn').textContent = wMode === 'deposit' ? 'Request deposit' : 'Request withdrawal';
+    renderWalletMode();
   }));
   $('#wForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!S.user.has_bank) return goBank('Add your bank account first');
+    if (needBank()) return goBank('Add your bank account first');
     try {
       await withBusy($('#wBtn'), () => api(`/api/wallet/${wMode}`, { method: 'POST', body: { amount: $('#wAmount').value, note: $('#wNote').value } }));
       toast(wMode === 'deposit' ? 'Deposit requested — pending admin approval' : 'Withdrawal requested — funds on hold until processed');
@@ -451,7 +495,7 @@
       }
     }
     const m = mkt();
-    if (m) document.title = `${pfmt(m.price)} ${m.symbol} — TradeV`;
+    if (m) document.title = `${pfmt(m.price)} ${m.symbol} — ${S.settings.site_name || 'TradeV'}`;
     renderHeader();
     updateLiveCells();
     if (S.type === 'market') updateSummary();
@@ -490,8 +534,10 @@
 
   // ---------------- boot ----------------
   async function boot() {
+    await loadSettings();
     if (!store.get()) { $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); return; }
     try { await refreshUser(); } catch { store.clear(); $('#auth').classList.remove('hidden'); return; }
+    await loadSettings(); // signed-in view adds deposit account, limits, support contact
     $('#auth').classList.add('hidden');
     $('#app').classList.remove('hidden');
     if (!chart) chart = new CandleChart($('#chart'));
@@ -505,11 +551,12 @@
     for (const o of S.active) seen.add(`${o.id}:${o.status}`);
     if (live) live.close();
     live = TV.poll({ tick: onTick, status: (ok) => $('#liveDot').classList.toggle('on', ok) });
-    if (!S.user.has_bank && !sessionStorage.getItem('tv_bank_prompted')) {
+    if (needBank() && !sessionStorage.getItem('tv_bank_prompted')) {
       sessionStorage.setItem('tv_bank_prompted', '1');
       goBank('Add your bank account to start trading');
     }
     pollUpdates();
+    setInterval(loadSettings, 60_000);
   }
   boot();
 })();

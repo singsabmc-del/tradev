@@ -196,6 +196,16 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .live-box .hint { margin: 0; }
 .src-result { min-height: 22px; margin-top: 8px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 
+.announce { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; margin-bottom: 16px; border-radius: 14px;
+  background: rgba(92, 184, 255, .09); border: 1px solid rgba(92, 184, 255, .3); color: #cfe8ff; font-size: 13.5px; }
+.announce .i { color: var(--blue); margin-top: 2px; }
+.notice { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; font-size: 13px; margin-bottom: 12px; }
+.notice.warn { color: var(--amber); background: rgba(255, 192, 77, .08); border: 1px solid rgba(255, 192, 77, .35); }
+.pay-to .bank-line { margin-top: 8px; }
+.big-num { font-size: 16px !important; color: var(--text) !important; letter-spacing: .5px; }
+.center { text-align: center; }
+.hidden.notice, .hidden.announce { display: none; }
+
 /* language switch */
 .lang-seg button { padding: 5px 12px; font-size: 12.5px; }
 .lang-row { display: flex; justify-content: center; margin: -2px 0 14px; }

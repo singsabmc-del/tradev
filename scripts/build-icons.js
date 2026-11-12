@@ -18,7 +18,7 @@ const ICONS = [
   'chart-column', 'hand-coins', 'circle-dollar-sign', 'clock',
   // actions & feedback
   'plus', 'user-plus', 'pencil', 'refresh-cw', 'search', 'circle-check', 'circle-exclamation-point', 'info', 'inbox',
-  'zap', 'eye', 'sheet', 'layers', 'lock', 'mail', 'user-round',
+  'zap', 'eye', 'sheet', 'layers', 'lock', 'mail', 'user-round', 'settings', 'megaphone', 'server', 'banknote', 'headset',
 ];
 
 const src = process.argv[2];
