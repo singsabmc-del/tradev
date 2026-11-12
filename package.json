@@ -1,7 +1,7 @@
 {
   "name": "tradev",
   "version": "1.0.0",
-  "description": "TradeV — leveraged trading web app (Vercel + Firebase Firestore or Supabase) with admin back office",
+  "description": "TradeV — leveraged trading web app (Vercel + Firebase Firestore) with admin back office",
   "main": "api/index.js",
   "private": true,
   "engines": {
@@ -10,10 +10,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "shim": "node scripts/postgrest-shim.js",
     "test": "node --test test/*.test.js",
-    "test:firestore": "node --test test/firestore.test.js",
-    "test:supabase": "node --test test/supabase.test.js",
     "firestore-mock": "node scripts/firestore-mock.js"
   },
   "license": "MIT"

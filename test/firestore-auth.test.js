@@ -26,7 +26,7 @@ test('private key with escaped \\n (as pasted into env vars) is normalised', () 
   const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
   const json = JSON.stringify({ project_id: 'p', client_email: 'e@p.iam.gserviceaccount.com', private_key: pem });
   const out = require('node:child_process').execFileSync(process.execPath, ['-e',
-    "const c=require('./lib/config');process.stdout.write(JSON.stringify({p:c.firebase.projectId,ok:c.firebase.privateKey.includes('\\n-----END'),db:c.dbProvider}))"],
+    "const c=require('./lib/config');process.stdout.write(JSON.stringify({p:c.firebase.projectId,ok:c.firebase.privateKey.includes('\\n-----END')}))"],
     { cwd: require('node:path').join(__dirname, '..'), env: { ...process.env, FIRESTORE_EMULATOR_HOST: '', FIREBASE_PROJECT_ID: '', FIREBASE_SERVICE_ACCOUNT: Buffer.from(json).toString('base64') } });
-  assert.deepEqual(JSON.parse(out), { p: 'p', ok: true, db: 'firestore' });
+  assert.deepEqual(JSON.parse(out), { p: 'p', ok: true });
 });

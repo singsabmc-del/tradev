@@ -1,19 +1,12 @@
-// End-to-end API suite, run once per storage backend (see supabase.test.js / firestore.test.js).
-//  - supabase:  real Postgres with both migrations, behind the PostgREST shim. Needs `psql`
-//               and a Postgres you can create databases on: PSQL_ARGS="-h localhost -U postgres".
-//  - firestore: the Firestore REST mock (scripts/firestore-mock.js); nothing else needed.
-// Two app instances are started on the same database to mimic serverless.
+// End-to-end API suite against the Firestore REST stand-in (scripts/firestore-mock.js).
+// Two app instances are started on the same database to mimic serverless. No setup needed.
 'use strict';
-const PROVIDER = process.env.TEST_DB || 'supabase';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn, spawnSync } = require('node:child_process');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const BASE_ARGS = (process.env.PSQL_ARGS || '-h localhost -U postgres').split(' ').filter(Boolean);
-const DB = `tradev_e2e_${process.pid}`;
-const SHIM_PORT = 55000 + (process.pid % 1000);
 const APP_PORT = 56000 + (process.pid % 1000);
 const URL_ = `http://127.0.0.1:${APP_PORT}`;
 const SHEET_PORT = 57000 + (process.pid % 1000);
@@ -23,7 +16,6 @@ const procs = [];
 const sheetPayloads = [];
 let sheetServer;
 
-const psql = (args, input) => spawnSync('psql', [...BASE_ARGS, '-X', '-q', '-v', 'ON_ERROR_STOP=1', ...args], { input, encoding: 'utf8' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function waitFor(fn, ms = 8000) {
@@ -43,23 +35,8 @@ async function call(pathname, { method = 'GET', body, token } = {}) {
 let admin, alice;
 
 before(async () => {
-  if (PROVIDER === 'supabase') {
-    const ok = psql(['-c', 'select 1']);
-    if (ok.status !== 0) throw new Error(`Cannot reach Postgres with PSQL_ARGS="${BASE_ARGS.join(' ')}": ${ok.stderr}`);
-    psql(['-c', `create database ${DB}`]);
-    // Supabase roles, so the migration's grants work on vanilla Postgres
-    psql(['-d', DB, '-c', "do $$ begin create role anon nologin; exception when duplicate_object then null; end $$; do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$; do $$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $$;"]);
-    for (const f of ['001_init.sql', '002_serverless.sql']) {
-      const mig = psql(['-d', DB, '-f', path.join(ROOT, 'supabase/migrations', f)]);
-      if (mig.status !== 0) throw new Error(mig.stderr);
-    }
-    const env = { ...process.env, PSQL_ARGS: [...BASE_ARGS, '-d', DB].join(' '), SHIM_PORT, SHIM_KEY: 'test-key' };
-    procs.push(spawn('node', [path.join(ROOT, 'scripts/postgrest-shim.js')], { env, stdio: 'ignore' }));
-    await waitFor(() => fetch(`http://127.0.0.1:${SHIM_PORT}/`).then(() => true));
-  } else {
-    procs.push(spawn('node', [path.join(ROOT, 'scripts/firestore-mock.js')], { env: { ...process.env, MOCK_PORT }, stdio: 'ignore' }));
-    await waitFor(() => fetch(`http://127.0.0.1:${MOCK_PORT}/`).then(() => true));
-  }
+  procs.push(spawn('node', [path.join(ROOT, 'scripts/firestore-mock.js')], { env: { ...process.env, MOCK_PORT }, stdio: 'ignore' }));
+  await waitFor(() => fetch(`http://127.0.0.1:${MOCK_PORT}/`).then(() => true));
 
   // Fake Google Apps Script web app: POST /exec answers 302 -> GET /echo (like the real one)
   sheetServer = require('node:http').createServer((req, res) => {
@@ -76,9 +53,7 @@ before(async () => {
 
   const appEnv = (port) => ({
     ...process.env,
-    ...(PROVIDER === 'supabase'
-      ? { DB_PROVIDER: 'supabase', SUPABASE_URL: `http://127.0.0.1:${SHIM_PORT}`, SUPABASE_SERVICE_ROLE_KEY: 'test-key' }
-      : { DB_PROVIDER: 'firestore', FIRESTORE_EMULATOR_HOST: `127.0.0.1:${MOCK_PORT}`, FIREBASE_PROJECT_ID: 'demo-tradev' }),
+    FIRESTORE_EMULATOR_HOST: `127.0.0.1:${MOCK_PORT}`, FIREBASE_PROJECT_ID: 'demo-tradev', FIREBASE_SERVICE_ACCOUNT: '',
     JWT_SECRET: 'test-secret', ADMIN_EMAIL: 'admin@test.io', ADMIN_PASSWORD: 'AdminPass123', PORT: port, STARTING_BALANCE: '1000',
     CRON_SECRET: 'cron-secret', LOCAL_TICK_MS: '0', ADVANCE_MIN_SECONDS: '1',
     SHEETS_WEBHOOK_URL: `http://127.0.0.1:${SHEET_PORT}/exec`, SHEETS_SECRET: 'sheet-secret', SHEETS_SYNC_SECONDS: '1', SHEETS_INCLUDE_STATS: 'true',
@@ -97,7 +72,6 @@ before(async () => {
 after(() => {
   for (const p of procs) p.kill();
   sheetServer.close();
-  if (PROVIDER === 'supabase') setTimeout(() => psql(['-c', `drop database if exists ${DB} with (force)`]), 300);
 });
 
 const me = async (t) => (await call('/api/me', { token: t })).data;
@@ -288,11 +262,6 @@ test('Google Sheets sync sends public market data only, never customer data', as
 
 // Simulate "nobody touched this market for N minutes" (and the order having been opened then).
 async function backdate({ orderId, marketId, minutes, price }) {
-  if (PROVIDER === 'supabase') {
-    psql(['-d', DB, '-c', `update orders set opened_at = now() - interval '${minutes} minutes', created_at = now() - interval '${minutes} minutes' where id = ${orderId};
-                           update markets set last_tick_at = now() - interval '${minutes} minutes', price = ${price} where id = ${marketId};`]);
-    return;
-  }
   const at = { timestampValue: new Date(Date.now() - minutes * 60_000).toISOString() };
   const root = 'projects/demo-tradev/databases/(default)/documents';
   const res = await fetch(`http://127.0.0.1:${MOCK_PORT}/v1/${root}:commit`, {

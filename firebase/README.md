@@ -26,7 +26,7 @@ Set **one** environment variable (Vercel → Project → Settings → Environmen
 FIREBASE_SERVICE_ACCOUNT=<paste the whole JSON file content>
 ```
 Base64 of the file also works: `base64 -w0 key.json` (macOS: `base64 -i key.json`).
-When this is set, TradeV uses Firestore automatically (`DB_PROVIDER=firestore`). Remove the `SUPABASE_*` variables.
+> The web `firebaseConfig` (apiKey, authDomain, …) is **not** this key. It's for browser SDKs and can't give the server access.
 
 On first request TradeV creates the admin account (`ADMIN_EMAIL` / `ADMIN_PASSWORD`), the 6 default markets and their chart history.
 

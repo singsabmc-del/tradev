@@ -51,6 +51,6 @@ async function main() {
 
 main().catch((e) => {
   console.error('Failed to start:', e.message);
-  if (/relation|does not exist|Could not find/i.test(e.message)) console.error('Run supabase/migrations/001_init.sql and 002_serverless.sql in your Supabase project.');
+  if (/NOT_FOUND|PERMISSION_DENIED|does not exist/i.test(e.message)) console.error('Check FIREBASE_SERVICE_ACCOUNT and that a Firestore database exists in the project (see firebase/README.md).');
   process.exit(1);
 });
