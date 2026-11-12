@@ -128,8 +128,8 @@
     S.side = b.dataset.side;
     $$('[data-side]').forEach((x) => x.classList.toggle('active', x === b));
     const btn = $('#submitOrder');
-    btn.className = `btn btn-block ${S.side === 'long' ? 'btn-green' : 'btn-red'}`;
-    btn.textContent = S.side === 'long' ? 'Buy / Long' : 'Sell / Short';
+    btn.className = `btn btn-block btn-icon ${S.side === 'long' ? 'btn-green' : 'btn-red'}`;
+    btn.innerHTML = `${icon(S.side === 'long' ? 'trending-up' : 'trending-down')}<span>${S.side === 'long' ? 'Buy / Long' : 'Sell / Short'}</span>`;
     updateSummary();
   }));
   $$('[data-type]').forEach((b) => b.addEventListener('click', () => {
@@ -355,13 +355,13 @@
     const upnl = open.reduce((s, o) => s + (livePnl(o).pnl || 0), 0);
     const locked = S.active.reduce((s, o) => s + o.margin, 0);
     const equity = S.user.balance + locked + upnl;
-    const k = (label, value, sub = '', c = '') => `<div class="card kpi"><div class="label">${label}</div><div class="value ${c}">${value}</div><div class="sub">${sub}</div></div>`;
+    const k = (label, value, sub = '', c = '', ic = '') => `<div class="card kpi"><div class="label">${ic ? icon(ic, 'kpi-i') : ''}<span>${label}</span></div><div class="value ${c}">${value}</div><div class="sub">${sub}</div></div>`;
     $('#pfKpis').innerHTML = [
-      k('Equity', money(equity), 'Balance + margin + open PnL'),
-      k('Available balance', money(S.user.balance)),
-      k('Open PnL', signed(upnl), `${open.length} open position(s)`, cls(upnl)),
-      k('Realized PnL (net of fees)', signed(realized), `${closed.length} closed trades`, cls(realized)),
-      k('Win rate', closed.length ? `${((wins / closed.length) * 100).toFixed(1)}%` : '—', `<span class="up">${wins} win</span> · <span class="down">${losses} lose</span>`),
+      k('Equity', money(equity), 'Balance + margin + open PnL', '', 'landmark'),
+      k('Available balance', money(S.user.balance), '', '', 'wallet'),
+      k('Open PnL', signed(upnl), `${open.length} open position(s)`, cls(upnl), 'activity'),
+      k('Realized PnL (net of fees)', signed(realized), `${closed.length} closed trades`, cls(realized), 'coins'),
+      k('Win rate', closed.length ? `${((wins / closed.length) * 100).toFixed(1)}%` : '—', `<span class="up">${wins} win</span> · <span class="down">${losses} lose</span>`, '', 'trophy'),
     ].join('');
     $('#pfHistory').innerHTML = historyTable(S.history);
   }

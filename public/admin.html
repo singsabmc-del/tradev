@@ -6,6 +6,7 @@
   <title>TradeV Admin</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23061513'/><path d='M16 5l9 3.5v7c0 6-4 9.5-9 11-5-1.5-9-5-9-11v-7z' stroke='%235cb8ff' stroke-width='2.5' fill='none'/></svg>" />
   <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
   <style>
     .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
     .winbar { height: 8px; border-radius: 99px; background: rgba(255,77,99,.5); overflow: hidden; margin-top: 10px; }
@@ -51,7 +52,7 @@
       <div class="userbox">
         <div class="who" id="uName"></div>
         <div class="email" id="uEmail"></div>
-        <button class="btn btn-sm mt" id="logout">Log out</button>
+        <button class="btn btn-sm mt btn-icon" id="logout"><i data-icon="log-out"></i><span>Log out</span></button>
       </div>
     </aside>
     <header class="mobile-top">
@@ -61,6 +62,7 @@
     <main class="main" id="main"></main>
   </div>
 
+  <script src="/icons.js"></script>
   <script src="/i18n.js"></script>
   <script src="/common.js"></script>
   <script src="/admin.js"></script>

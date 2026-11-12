@@ -43,7 +43,7 @@
   }
 
   const title = (t, right = '') => `<h1 class="page-title">${t}<span style="margin-left:auto" class="row">${right}</span></h1>`;
-  const kpi = (label, value, sub = '', c = '') => `<div class="card kpi"><div class="label">${label}</div><div class="value ${c}">${value}</div><div class="sub">${sub}</div></div>`;
+  const kpi = (label, value, sub = '', c = '', ic = '') => `<div class="card kpi"><div class="label">${ic ? icon(ic, 'kpi-i') : ''}<span>${label}</span></div><div class="value ${c}">${value}</div><div class="sub">${sub}</div></div>`;
   const opts = (list, sel) => list.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(sel ?? '') ? 'selected' : ''}>${esc(l)}</option>`).join('');
   const dec = (o) => (o.decimals ?? 2);
 
@@ -63,7 +63,7 @@
       <td class="r num ${cls(pnl)}" data-pnl>${pnl === null || pnl === undefined ? '—' : signed(pnl)}</td>
       <td>${o.result ? badge(o.result) : isOpen ? '<span class="dim">live</span>' : '—'}</td><td>${o.close_reason ? badge(o.close_reason) : '—'}</td>
       <td class="muted">${time(o.opened_at || o.created_at)}</td><td class="muted">${time(o.closed_at)}</td>
-      <td class="r">${isOpen ? `<button class="btn btn-sm btn-ghost-red" data-fclose="${o.id}">Force close</button>` : o.status === 'pending' ? `<button class="btn btn-sm" data-fcancel="${o.id}">Cancel</button>` : ''}</td></tr>`;
+      <td class="r">${isOpen ? `<button class="btn btn-sm btn-ghost-red btn-icon" data-fclose="${o.id}">${icon('circle-x')}<span>Force close</span></button>` : o.status === 'pending' ? `<button class="btn btn-sm" data-fcancel="${o.id}">Cancel</button>` : ''}</td></tr>`;
     }).join('')}</tbody></table>`;
   }
   function txTable(rows, { showUser = true } = {}) {
@@ -73,7 +73,7 @@
       ${showUser ? `<td><a href="#" data-user="${t.user_id}">${esc(t.user_name || t.user_email)}</a><div class="dim small">${esc(t.user_email)}</div></td>` : ''}
       <td>${badge(t.type)}</td><td class="r num ${cls(t.amount)}">${signed(t.amount)}</td>
       <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}</td>
-      <td class="r">${t.status === 'pending' ? `<button class="btn btn-sm btn-ghost-green" data-approve="${t.id}">Approve</button> <button class="btn btn-sm btn-ghost-red" data-reject="${t.id}">Reject</button>` : ''}</td></tr>`).join('')}</tbody></table>`;
+      <td class="r">${t.status === 'pending' ? `<button class="btn btn-sm btn-ghost-green btn-icon" data-approve="${t.id}">${icon('check')}<span>Approve</span></button> <button class="btn btn-sm btn-ghost-red btn-icon" data-reject="${t.id}">${icon('x')}<span>Reject</span></button>` : ''}</td></tr>`).join('')}</tbody></table>`;
   }
   // Wire actions inside a container; `after` reloads the current data.
   function wire(el, after) {
@@ -111,16 +111,16 @@
       const house = Number(s.fees) - Number(s.customer_pnl) - Number(s.unrealized_pnl);
       $('#dash').outerHTML = `<div id="dash">
         <div class="kpis">
-          ${kpi('Customers', fmt(s.customers, 0), `${s.active_customers} active`)}
-          ${kpi('Customer balances', money(s.customer_balances), `+ ${money(s.open_margin)} in open margin`)}
-          ${kpi('Open positions', fmt(s.open_positions, 0), `${s.pending_orders} pending limit orders`)}
-          ${kpi('Unrealized customer PnL', signed(s.unrealized_pnl), 'live, marked to market', cls(s.unrealized_pnl))}
-          ${kpi('Closed trades', fmt(s.closed_trades, 0), `<span class="up">${s.wins} win</span> · <span class="down">${s.losses} lose</span><div class="winbar"><div style="width:${(wr * 100).toFixed(1)}%"></div></div>`)}
-          ${kpi('Customer win rate', s.wins + s.losses ? `${(wr * 100).toFixed(1)}%` : '—')}
-          ${kpi('Realized customer PnL', signed(s.customer_pnl), 'before fees', cls(s.customer_pnl))}
-          ${kpi('Fees collected', money(s.fees))}
-          ${kpi('House result', signed(house), 'fees − customer PnL (incl. open)', cls(house))}
-          ${kpi('Trading volume', money(s.volume, 0), 'notional, all time')}
+          ${kpi('Customers', fmt(s.customers, 0), `${s.active_customers} active`, '', 'users')}
+          ${kpi('Customer balances', money(s.customer_balances), `+ ${money(s.open_margin)} in open margin`, '', 'wallet')}
+          ${kpi('Open positions', fmt(s.open_positions, 0), `${s.pending_orders} pending limit orders`, '', 'layers')}
+          ${kpi('Unrealized customer PnL', signed(s.unrealized_pnl), 'live, marked to market', cls(s.unrealized_pnl), 'activity')}
+          ${kpi('Closed trades', fmt(s.closed_trades, 0), `<span class="up">${s.wins} win</span> · <span class="down">${s.losses} lose</span><div class="winbar"><div style="width:${(wr * 100).toFixed(1)}%"></div></div>`, '', 'receipt-text')}
+          ${kpi('Customer win rate', s.wins + s.losses ? `${(wr * 100).toFixed(1)}%` : '—', '', '', 'trophy')}
+          ${kpi('Realized customer PnL', signed(s.customer_pnl), 'before fees', cls(s.customer_pnl), 'coins')}
+          ${kpi('Fees collected', money(s.fees), '', '', 'percent')}
+          ${kpi('House result', signed(house), 'fees − customer PnL (incl. open)', cls(house), 'scale')}
+          ${kpi('Trading volume', money(s.volume, 0), 'notional, all time', '', 'chart-column')}
         </div>
         <div class="two">
           <div class="card"><div class="card-pad"><h3>Pending requests (${pending.length})</h3></div><div class="table-wrap tbl-scroll" id="dPend">${txTable(pending)}</div></div>
@@ -146,7 +146,7 @@
     const state = st.lastError
       ? `<span class="down" title="${esc(st.lastError)}">error</span>`
       : st.lastOk ? `<span class="up">synced ${time(st.lastOk)}</span>` : '<span class="dim">waiting…</span>';
-    el.innerHTML = `Google Sheets: ${state} <button class="btn btn-sm" id="syncNow">Sync now</button> ·`;
+    el.innerHTML = `Google Sheets: ${state} <button class="btn btn-sm btn-icon" id="syncNow">${icon('refresh-cw')}<span>Sync now</span></button> ·`;
     $('#syncNow').onclick = async (e) => {
       try { renderSheets(await withBusy(e.target, () => api('/api/admin/sheets/sync', { method: 'POST' }))); toast('Google Sheet updated'); }
       catch (err) { toast(err.message, 'err'); }
@@ -155,7 +155,7 @@
 
   // ---------- markets ----------
   async function viewMarkets() {
-    main.innerHTML = title('Markets', '<button class="btn btn-green" id="newMarket">+ New market</button>') +
+    main.innerHTML = title('Markets', `<button class="btn btn-green btn-icon" id="newMarket">${icon('plus')}<span>New market</span></button>`) +
       '<p class="hint">Volatility is the per-second standard deviation of price moves; drift biases the trend (positive = up). Changing the price moves the live market instantly.</p>' +
       '<div class="card"><div class="table-wrap" id="mTable"><div class="empty">Loading…</div></div></div>';
     $('#newMarket').addEventListener('click', () => marketForm());
@@ -171,7 +171,7 @@
         <td class="r num">${m.volatility}</td><td class="r num ${cls(m.drift)}">${m.drift}</td><td class="r num">${m.max_leverage}x</td>
         <td class="r num">${(m.fee_rate * 100).toFixed(3)}%</td><td class="r num">${fmt(m.min_margin)}</td>
         <td>${badge(m.enabled ? 'active' : 'suspended')}</td>
-        <td class="r"><button class="btn btn-sm" data-edit="${m.id}">Edit</button>
+        <td class="r"><button class="btn btn-sm btn-icon" data-edit="${m.id}">${icon('pencil')}<span>Edit</span></button>
           <button class="btn btn-sm ${m.enabled ? 'btn-ghost-red' : 'btn-ghost-green'}" data-toggle="${m.id}">${m.enabled ? 'Disable' : 'Enable'}</button></td></tr>`).join('')}
       </tbody></table>`;
     box.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => marketForm(S.markets.find((m) => m.id === +b.dataset.edit))));
@@ -212,10 +212,10 @@
   // ---------- customers ----------
   async function viewCustomers() {
     main.innerHTML = title('Customers') + `<div class="toolbar">
-      <input class="input" id="q" placeholder="Search name or email…" style="min-width:260px" />
+      <label class="search">${icon('search')}<input class="input" id="q" placeholder="Search name or email…" /></label>
       <select class="input" id="fRole">${opts([['', 'All roles'], ['customer', 'Customers'], ['admin', 'Admins']], 'customer')}</select>
       <select class="input" id="fStatus">${opts([['', 'Any status'], ['active', 'Active'], ['suspended', 'Suspended']])}</select>
-      <button class="btn" id="addUser">+ Add customer</button></div>
+      <button class="btn btn-icon" id="addUser">${icon('user-plus')}<span>Add customer</span></button></div>
       <div class="card"><div class="table-wrap tbl-scroll" id="uTable"><div class="empty">Loading…</div></div></div>`;
     let t;
     $('#q').addEventListener('input', () => { clearTimeout(t); t = setTimeout(loadUsers, 250); });
@@ -272,7 +272,7 @@
     const mk = (l, v, c = '') => `<div class="card"><div class="label">${l}</div><div class="value ${c}">${v}</div></div>`;
     drawer.innerHTML = `
       <div class="row"><div><h2>${esc(u.name)} ${badge(u.role === 'admin' ? 'admin' : 'customer')} ${badge(u.status)}</h2><div class="muted">${esc(u.email)} · #${u.id} · joined ${time(u.created_at)} · last login ${time(u.last_login_at)}</div></div>
-      <button class="btn close-x" id="dClose">✕</button></div>
+      <button class="btn close-x btn-icon" id="dClose" title="Close">${icon('x')}</button></div>
       <div class="mini-kpis">${mk('Balance', fmt(u.balance))}${mk('Closed trades', u.trades)}${mk('Wins', u.wins, 'up')}${mk('Losses', u.losses, 'down')}${mk('Win rate', wr)}${mk('Total PnL', signed(u.total_pnl), cls(u.total_pnl))}${mk('Open positions', u.open_positions)}</div>
       <div class="two">
         <form class="card card-pad" id="pf"><h3>Profile</h3>

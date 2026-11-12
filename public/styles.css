@@ -168,6 +168,26 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
 .toolbar .input { width: auto; min-width: 150px; }
 
+/* icons (Lucide, see icons.js) */
+.i { width: 1.15em; height: 1.15em; flex: none; stroke-width: 1.85; vertical-align: -0.2em; }
+.i-sm { width: 14px; height: 14px; }
+.btn-icon, .seg button, .tab, .lbl { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.lbl { justify-content: flex-start; }
+.lbl .i { color: var(--muted); }
+.btn-block.btn-icon { display: flex; }
+.btn-block .i { width: 20px; height: 20px; stroke-width: 2.2; }
+.tab .i { width: 16px; height: 16px; opacity: .8; }
+.close-x { padding: 8px; }
+.kpi .label { display: flex; align-items: center; gap: 8px; }
+.kpi-i { width: 26px; height: 26px; padding: 5px; border-radius: 8px; background: rgba(25, 227, 125, .1); color: var(--green); stroke-width: 2; }
+.toast { display: flex; align-items: flex-start; gap: 10px; }
+.toast-i { width: 19px; height: 19px; margin-top: 1px; color: var(--green); }
+.toast.err .toast-i { color: var(--red); } .toast.warn .toast-i { color: var(--amber); }
+.search { position: relative; display: inline-flex; align-items: center; }
+.search .i { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
+.search .input { padding-left: 36px; min-width: 260px; }
+.nav-item svg { stroke-width: 1.75; }
+
 /* language switch */
 .lang-seg button { padding: 5px 12px; font-size: 12.5px; }
 .lang-row { display: flex; justify-content: center; margin: -2px 0 14px; }

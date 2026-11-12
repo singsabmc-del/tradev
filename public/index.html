@@ -7,6 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23061513'/><path d='M7 21l6-6 4 4 8-9' stroke='%2319e37d' stroke-width='3' fill='none'/></svg>" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/trade.css" />
+  <link rel="stylesheet" href="/icons.css" />
 </head>
 <body data-token-key="tradev_token">
   <!-- Auth -->
@@ -42,7 +43,7 @@
         <div class="email" id="uEmail"></div>
         <div class="row between mt">
           <span class="num" id="uBal"></span>
-          <button class="btn btn-sm" id="logout">Log out</button>
+          <button class="btn btn-sm btn-icon" id="logout"><i data-icon="log-out"></i><span>Log out</span></button>
         </div>
       </div>
     </aside>
@@ -61,7 +62,7 @@
                 <button id="pickerBtn" class="picker-btn">
                   <span class="coin" id="coinIcon">B</span>
                   <span><b id="symName">BTC/USDT</b><span class="perp">Perp</span></span>
-                  <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" stroke="currentColor" fill="none" stroke-width="1.6"/></svg>
+                  <i data-icon="chevron-down" class="i-sm"></i>
                 </button>
                 <div id="pickerList" class="picker-list hidden"></div>
               </div>
@@ -89,10 +90,10 @@
             </div>
 
             <div class="tabs mt" id="bottomTabs">
-              <button class="tab active" data-tab="positions">Positions<span class="count" id="cPos">0</span></button>
-              <button class="tab" data-tab="open">Open orders<span class="count" id="cOpen">0</span></button>
-              <button class="tab" data-tab="history">History</button>
-              <button class="tab" data-tab="tx">Transactions</button>
+              <button class="tab active" data-tab="positions"><i data-icon="layers"></i>Positions<span class="count" id="cPos">0</span></button>
+              <button class="tab" data-tab="open"><i data-icon="clock"></i>Open orders<span class="count" id="cOpen">0</span></button>
+              <button class="tab" data-tab="history"><i data-icon="receipt-text"></i>History</button>
+              <button class="tab" data-tab="tx"><i data-icon="arrow-left-right"></i>Transactions</button>
             </div>
             <div class="card table-card"><div class="table-wrap" id="bottomTable"></div></div>
           </div>
@@ -101,8 +102,8 @@
           <div class="card order-panel">
             <div class="row between">
               <div class="seg side-seg">
-                <button data-side="long" class="active long">Buy / Long</button>
-                <button data-side="short" class="short">Sell / Short</button>
+                <button data-side="long" class="active long"><i data-icon="trending-up"></i>Buy / Long</button>
+                <button data-side="short" class="short"><i data-icon="trending-down"></i>Sell / Short</button>
               </div>
             </div>
             <div class="row between mt"><span class="muted">Available</span><b class="num" id="avail">—</b></div>
@@ -123,9 +124,9 @@
             </label>
             <div class="seg full pct-seg"><button data-pct="0.1">10%</button><button data-pct="0.25">25%</button><button data-pct="0.5">50%</button><button data-pct="1">Max</button></div>
 
-            <div class="op-row mt"><span>Take profit</span><label class="switch"><input type="checkbox" id="tpOn" /><span></span></label></div>
+            <div class="op-row mt"><span class="lbl"><i data-icon="target"></i>Take profit</span><label class="switch"><input type="checkbox" id="tpOn" /><span></span></label></div>
             <div class="input-group hidden" id="tpBox"><input id="tp" inputmode="decimal" placeholder="Trigger price" /><span class="suffix" id="tpPct"></span></div>
-            <div class="op-row"><span>Stop loss</span><label class="switch"><input type="checkbox" id="slOn" /><span></span></label></div>
+            <div class="op-row"><span class="lbl"><i data-icon="shield-exclamation-point"></i>Stop loss</span><label class="switch"><input type="checkbox" id="slOn" /><span></span></label></div>
             <div class="input-group hidden" id="slBox"><input id="sl" inputmode="decimal" placeholder="Trigger price" /><span class="suffix" id="slPct"></span></div>
 
             <div class="summary">
@@ -136,7 +137,7 @@
               <div><span>Fee</span><b class="num" id="sFee">—</b></div>
               <div><span>Total cost</span><b class="num" id="sCost">—</b></div>
             </div>
-            <button class="btn btn-green btn-block" id="submitOrder">Buy / Long</button>
+            <button class="btn btn-green btn-block btn-icon" id="submitOrder"><i data-icon="trending-up"></i><span>Buy / Long</span></button>
             <p class="dim small center" id="orderHint"></p>
           </div>
         </div>
@@ -160,10 +161,10 @@
         <h1 class="page-title">Wallet</h1>
         <div class="wallet-grid">
           <div class="card card-pad">
-            <h3>Balance</h3>
+            <h3 class="lbl"><i data-icon="wallet"></i>Balance</h3>
             <div class="big-price num" id="wBal">—</div>
             <p class="muted small">Deposits are credited after an administrator approves them. Withdrawals are held from your balance until processed.</p>
-            <div class="seg full mt" id="wSeg"><button data-w="deposit" class="active">Deposit</button><button data-w="withdraw">Withdraw</button></div>
+            <div class="seg full mt" id="wSeg"><button data-w="deposit" class="active"><i data-icon="arrow-down-to-line"></i>Deposit</button><button data-w="withdraw"><i data-icon="arrow-up-from-line"></i>Withdraw</button></div>
             <form id="wForm" class="mt">
               <label class="field"><span>Amount (USDT)</span><input class="input num" id="wAmount" inputmode="decimal" required /></label>
               <label class="field"><span>Note (optional)</span><input class="input" id="wNote" maxlength="80" placeholder="e.g. bank transfer ref" /></label>
@@ -176,6 +177,7 @@
     </main>
   </div>
 
+  <script src="/icons.js"></script>
   <script src="/i18n.js"></script>
   <script src="/common.js"></script>
   <script src="/chart.js"></script>

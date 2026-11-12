@@ -106,6 +106,10 @@ test/                e2e.test.js
 vercel.json          routing, function config, daily cron, security headers
 ```
 
+## Icons
+UI icons are from [Lucide](https://lucide.dev) (ISC license), packed into `public/icons.js` by
+`scripts/build-icons.js` — no runtime CDN. To add an icon, add its name to the list in that script and re-run it.
+
 ## Notes
 - This is a **simulated-price** demo exchange. Real market data or real payments need a price feed, KYC,
   a payment provider, and the licensing that comes with them.
