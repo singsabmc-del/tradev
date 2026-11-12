@@ -51,3 +51,14 @@
   .price-head { gap: 16px; }
   .picker-list { width: calc(100vw - 30px); }
 }
+
+/* bank account */
+.wallet-left { display: grid; gap: 18px; align-content: start; }
+.bank-card.needed { border-color: rgba(255, 192, 77, .55); box-shadow: 0 0 0 3px rgba(255, 192, 77, .08); }
+.bank-card.needed h3 { color: var(--amber); }
+.bank-line { display: grid; gap: 4px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(0,0,0,.2); border: 1px solid var(--line); }
+.bank-line span { color: var(--muted); font-size: 13px; }
+#wForm.locked { opacity: .45; pointer-events: none; }
+.bank-needed { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; font-size: 13px;
+  color: var(--amber); background: rgba(255, 192, 77, .08); border: 1px solid rgba(255, 192, 77, .35); }
+.bank-needed.hidden { display: none; }

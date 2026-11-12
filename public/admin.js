@@ -72,7 +72,7 @@
     ${rows.map((t) => `<tr><td class="dim">${t.id}</td><td class="muted">${time(t.created_at)}</td>
       ${showUser ? `<td><a href="#" data-user="${t.user_id}">${esc(t.user_name || t.user_email)}</a><div class="dim small">${esc(t.user_email)}</div></td>` : ''}
       <td>${badge(t.type)}</td><td class="r num ${cls(t.amount)}">${signed(t.amount)}</td>
-      <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}</td>
+      <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}${t.bank ? `<div class="bank-tx">${icon('landmark')}<span>${esc(t.bank.bank_name)} · ${esc(t.bank.account_name)} · <b class="num">${esc(t.bank.account_number)}</b></span></div>` : ''}</td>
       <td class="r">${t.status === 'pending' ? `<button class="btn btn-sm btn-ghost-green btn-icon" data-approve="${t.id}">${icon('check')}<span>Approve</span></button> <button class="btn btn-sm btn-ghost-red btn-icon" data-reject="${t.id}">${icon('x')}<span>Reject</span></button>` : ''}</td></tr>`).join('')}</tbody></table>`;
   }
   // Wire actions inside a container; `after` reloads the current data.
@@ -277,11 +277,11 @@
     const qs = new URLSearchParams({ q: $('#q').value, role: $('#fRole').value, status: $('#fStatus').value });
     const users = await api(`/api/admin/users?${qs}`);
     if (!$('#uTable')) return;
-    $('#uTable').innerHTML = users.length ? `<table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th class="r">Balance</th><th class="r">Trades</th><th class="r">Win / Lose</th><th class="r">Win rate</th><th class="r">Total PnL</th><th class="r">Open</th><th>Status</th><th>Joined</th><th>Last login</th></tr></thead><tbody>
+    $('#uTable').innerHTML = users.length ? `<table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th class="r">Balance</th><th class="r">Trades</th><th class="r">Win / Lose</th><th class="r">Win rate</th><th class="r">Total PnL</th><th class="r">Open</th><th>Bank</th><th>Status</th><th>Joined</th><th>Last login</th></tr></thead><tbody>
       ${users.map((u) => `<tr class="clickable" data-uid="${u.id}"><td class="dim">${u.id}</td><td><b>${esc(u.name)}</b> ${u.role === 'admin' ? badge('admin') : ''}</td><td class="muted">${esc(u.email)}</td>
         <td class="r num">${fmt(u.balance)}</td><td class="r num">${u.trades}</td><td class="r num"><span class="up">${u.wins}</span> / <span class="down">${u.losses}</span></td>
         <td class="r num">${u.wins + u.losses ? `${((u.wins / (u.wins + u.losses)) * 100).toFixed(0)}%` : '—'}</td>
-        <td class="r num ${cls(u.total_pnl)}">${signed(u.total_pnl)}</td><td class="r num">${u.open_positions}</td><td>${badge(u.status)}</td>
+        <td class="r num ${cls(u.total_pnl)}">${signed(u.total_pnl)}</td><td class="r num">${u.open_positions}</td><td>${u.has_bank ? `<span class="up" title="${esc(u.bank.bank_name)}">${icon('circle-check')}</span>` : `<span class="down" title="No bank account">${icon('circle-exclamation-point')}</span>`}</td><td>${badge(u.status)}</td>
         <td class="muted">${time(u.created_at)}</td><td class="muted">${time(u.last_login_at)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No customers found</div>';
     $$('#uTable [data-uid]').forEach((tr) => tr.addEventListener('click', () => openCustomer(+tr.dataset.uid)));
   }
@@ -337,6 +337,14 @@
           <label class="field"><span>Reason</span><input class="input" name="note" placeholder="Bonus, correction, …" maxlength="80" /></label>
           <button class="btn btn-green" id="bSave">Apply adjustment</button></form>
       </div>
+      <form class="card card-pad mt" id="bkf"><div class="row between"><h3 class="lbl" style="margin:0">${icon('landmark')}<span>Bank account</span></h3>
+          ${u.bank ? `<span class="dim small">Updated ${time(u.bank.updated_at)}</span>` : '<span class="badge lose">No bank account</span>'}</div>
+        <div class="grid3 mt">
+          <label class="field"><span>Bank name</span><input class="input" name="bank_name" value="${esc(u.bank ? u.bank.bank_name : '')}" /></label>
+          <label class="field"><span>Account holder name</span><input class="input" name="account_name" value="${esc(u.bank ? u.bank.account_name : '')}" /></label>
+          <label class="field"><span>Account number</span><input class="input num" name="account_number" value="${esc(u.bank ? u.bank.account_number : '')}" /></label>
+        </div>
+        <div class="row"><button class="btn btn-green" id="bkSave">Save bank account</button>${u.bank ? '<button type="button" class="btn btn-ghost-red" id="bkRemove">Remove</button>' : ''}</div></form>
       <div class="tabs mt" id="dTabs"><button class="tab active" data-t="orders">Orders (${orders.length})</button><button class="tab" data-t="tx">Transactions (${transactions.length})</button></div>
       <div class="card"><div class="table-wrap tbl-scroll" id="dBody"></div></div>`;
     const showTab = (t) => {
@@ -352,6 +360,16 @@
       const body = Object.fromEntries(new FormData(e.target));
       if (!body.password) delete body.password;
       try { await withBusy($('#pSave'), () => api(`/api/admin/users/${id}`, { method: 'PATCH', body })); toast('Profile saved'); openCustomer(id); refreshList(); }
+      catch (err) { toast(err.message, 'err'); }
+    });
+    $('#bkf').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try { await withBusy($('#bkSave'), () => api(`/api/admin/users/${id}`, { method: 'PATCH', body: { bank: Object.fromEntries(new FormData(e.target)) } })); toast('Bank account saved'); openCustomer(id); refreshList(); }
+      catch (err) { toast(err.message, 'err'); }
+    });
+    if ($('#bkRemove')) $('#bkRemove').addEventListener('click', async () => {
+      if (!(await confirmBox('Remove bank account?', 'The customer will not be able to deposit, withdraw or trade until they add one again.', { okText: 'Remove', danger: true }))) return;
+      try { await api(`/api/admin/users/${id}`, { method: 'PATCH', body: { bank: null } }); toast('Bank account removed'); openCustomer(id); refreshList(); }
       catch (err) { toast(err.message, 'err'); }
     });
     $('#bf').addEventListener('submit', async (e) => {

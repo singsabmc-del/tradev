@@ -72,6 +72,9 @@ before(async () => {
   admin = (await call('/api/auth/login', { method: 'POST', body: { email: 'admin@test.io', password: 'AdminPass123' } })).data.token;
   alice = (await call('/api/auth/register', { method: 'POST', body: { email: 'alice@test.io', name: 'Alice', password: 'alicepass1' } })).data.token;
   assert.ok(admin && alice);
+  // customers must have a bank account before deposits, withdrawals and trading
+  const b = await call('/api/me/bank', { method: 'PUT', token: alice, body: { bank_name: 'Kasikornbank', account_name: 'Alice Test', account_number: '123-4-56789-0' } });
+  assert.equal(b.status, 200, JSON.stringify(b.data));
 });
 
 after(() => {
@@ -418,4 +421,48 @@ test('exchange outage: site keeps working, orders on that market are refused wit
     const m = (await call('/api/admin/markets', { token: admin })).data.find((x) => x.symbol === 'LIVE/USDT');
     assert.ok(m.feed_error && m.feed_error.message);
   } finally { await exFail(false); }
+});
+
+// ---------------- bank accounts ----------------
+test('no bank account: deposit, withdrawal and trading are refused with BANK_REQUIRED', async () => {
+  const bob = (await call('/api/auth/register', { method: 'POST', body: { email: 'bob@test.io', name: 'Bob', password: 'bobpass12' } })).data.token;
+  const me = (await call('/api/me', { token: bob })).data;
+  assert.equal(me.has_bank, false);
+  for (const [path, body] of [
+    ['/api/orders', { symbol: 'BTC/USDT', side: 'long', type: 'market', margin: 10, leverage: 2 }],
+    ['/api/wallet/deposit', { amount: 100 }], ['/api/wallet/withdraw', { amount: 10 }],
+  ]) {
+    const r = await call(path, { method: 'POST', token: bob, body });
+    assert.equal(r.status, 403, path);
+    assert.equal(r.data.code, 'BANK_REQUIRED', path);
+  }
+  const bad = await call('/api/me/bank', { method: 'PUT', token: bob, body: { bank_name: 'X', account_name: 'Bob', account_number: '12' } });
+  assert.equal(bad.status, 400);
+  const ok = await call('/api/me/bank', { method: 'PUT', token: bob, body: { bank_name: 'ABA Bank', account_name: 'Bob Builder', account_number: '000 123 456' } });
+  assert.equal(ok.data.has_bank, true);
+  assert.equal(ok.data.bank.account_number, '•••• 3456', 'customer sees a masked number');
+  const o = await call('/api/orders', { method: 'POST', token: bob, body: { symbol: 'BTC/USDT', side: 'long', type: 'market', margin: 10, leverage: 2 } });
+  assert.equal(o.status, 200);
+  await call(`/api/orders/${o.data.id}/close`, { method: 'POST', token: bob });
+});
+
+test('withdrawals record the bank account; admin sees full details and can edit or remove them', async () => {
+  const w = (await call('/api/wallet/withdraw', { method: 'POST', token: alice, body: { amount: 5 } })).data;
+  assert.equal(w.bank.account_number, '1234567890');
+  const mine = (await call('/api/transactions', { token: alice })).data.find((t) => t.id === w.id);
+  assert.equal(mine.bank.account_number, '•••• 7890', 'masked in the customer view');
+  const pending = (await call('/api/admin/transactions?status=pending', { token: admin })).data.find((t) => t.id === w.id);
+  assert.deepEqual(pending.bank, { bank_name: 'Kasikornbank', account_name: 'Alice Test', account_number: '1234567890' });
+  await call(`/api/admin/transactions/${w.id}/reject`, { method: 'POST', token: admin });
+
+  const u = (await call('/api/admin/users?q=alice', { token: admin })).data[0];
+  assert.equal(u.has_bank, true);
+  assert.equal(u.bank.account_number, '1234567890');
+  const edit = await call(`/api/admin/users/${u.id}`, { method: 'PATCH', token: admin, body: { bank: { bank_name: 'SCB', account_name: 'Alice Test', account_number: '9876543210' } } });
+  assert.equal(edit.data.bank.account_number, '9876543210');
+  // the earlier request keeps the account it was made to
+  assert.equal((await call('/api/admin/transactions', { token: admin })).data.find((t) => t.id === w.id).bank.bank_name, 'Kasikornbank');
+  await call(`/api/admin/users/${u.id}`, { method: 'PATCH', token: admin, body: { bank: null } });
+  assert.equal((await call('/api/wallet/deposit', { method: 'POST', token: alice, body: { amount: 1 } })).data.code, 'BANK_REQUIRED');
+  await call('/api/me/bank', { method: 'PUT', token: alice, body: { bank_name: 'Kasikornbank', account_name: 'Alice Test', account_number: '1234567890' } });
 });

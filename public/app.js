@@ -71,7 +71,52 @@
     $('#avail').textContent = `${fmt(S.user.balance)} USDT`;
     $('#wBal').textContent = money(S.user.balance);
     $('#adminLink').classList.toggle('hidden', S.user.role !== 'admin');
+    $('#bankNeeded').classList.toggle('hidden', S.user.has_bank);
+    renderBank();
     updateSummary();
+  }
+
+  // ---------------- bank account ----------------
+  let bankEditing = false;
+  function goBank(msg) {
+    if (msg) toast(msg, 'warn');
+    bankEditing = true;
+    location.hash = 'wallet';
+    renderBank();
+    setTimeout(() => { const f = $('#bankCard input'); if (f) f.focus(); }, 50);
+  }
+  function renderBank() {
+    const box = $('#bankCard');
+    if (!box || !S.user) return;
+    const b = S.user.bank;
+    $('#wForm').classList.toggle('locked', !S.user.has_bank);
+    if (b && !bankEditing) {
+      box.classList.remove('needed');
+      box.innerHTML = `<div class="row between"><h3 class="lbl" style="margin:0">${icon('landmark')}<span>Bank account</span></h3>
+        <button class="btn btn-sm btn-icon" id="bankEdit">${icon('pencil')}<span>Change</span></button></div>
+        <div class="bank-line"><b>${esc(b.bank_name)}</b><span>${esc(b.account_name)}</span><span class="num">${esc(b.account_number)}</span></div>`;
+      $('#bankEdit').onclick = () => { bankEditing = true; renderBank(); };
+      return;
+    }
+    box.classList.toggle('needed', !b);
+    box.innerHTML = `<h3 class="lbl">${icon('landmark')}<span>${b ? 'Change bank account' : 'Add your bank account'}</span></h3>
+      ${b ? '' : '<p class="muted small" style="margin-top:-4px">Required before you can deposit, withdraw or trade. Withdrawals are paid to this account.</p>'}
+      <form id="bankForm">
+        <label class="field"><span>Bank name</span><input class="input" name="bank_name" list="bankList" required maxlength="60" value="${esc(b ? b.bank_name : '')}" autocomplete="off" /></label>
+        <label class="field"><span>Account holder name</span><input class="input" name="account_name" required maxlength="80" value="${esc(b ? b.account_name : S.user.name || '')}" /></label>
+        <label class="field"><span>Account number</span><input class="input num" name="account_number" required maxlength="40" inputmode="numeric" placeholder="${b ? esc(b.account_number) : '123-4-56789-0'}" autocomplete="off" /></label>
+        <div class="row">${b ? '<button type="button" class="btn" id="bankCancel">Cancel</button>' : ''}<button class="btn btn-green btn-icon" id="bankSave" style="flex:1">${icon('check')}<span>Save bank account</span></button></div>
+      </form>`;
+    if (b) $('#bankCancel').onclick = () => { bankEditing = false; renderBank(); };
+    $('#bankForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        S.user = await withBusy($('#bankSave'), () => api('/api/me/bank', { method: 'PUT', body: Object.fromEntries(new FormData(e.target)) }));
+        bankEditing = false;
+        toast('Bank account saved');
+        await refreshUser();
+      } catch (err) { toast(err.message, 'err'); }
+    });
   }
   async function loadActive() { S.active = await api('/api/orders?scope=active'); renderBottom(); }
   async function loadHistory() { S.history = await api('/api/orders?scope=history'); if (S.tab === 'history') renderBottom(); }
@@ -212,6 +257,7 @@
       margin: $('#margin').value, limitPrice: $('#limitPrice').value,
       tp: $('#tpOn').checked ? $('#tp').value : null, sl: $('#slOn').checked ? $('#sl').value : null,
     };
+    if (!S.user.has_bank) return goBank('Add your bank account first');
     if (!(+body.margin > 0)) return toast('Enter a margin amount', 'err');
     try {
       await withBusy($('#submitOrder'), async () => {
@@ -223,7 +269,7 @@
         await Promise.all([refreshUser(), loadActive()]);
         renderChartLines();
       });
-    } catch (e) { toast(e.message, 'err'); }
+    } catch (e) { if (e.code === 'BANK_REQUIRED') goBank(e.message); else toast(e.message, 'err'); }
   });
 
   // ---------------- bottom tables ----------------
@@ -275,7 +321,7 @@
     if (!rows.length) return '<div class="empty">No transactions</div>';
     return `<table class="tbl"><thead><tr><th>Time</th><th>Type</th><th class="r">Amount</th><th class="r">Balance after</th><th>Status</th><th>Note</th></tr></thead><tbody>
       ${rows.map((t) => `<tr><td class="muted">${time(t.created_at)}</td><td>${badge(t.type)}</td><td class="r num ${cls(t.amount)}">${signed(t.amount)}</td>
-        <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}</td></tr>`).join('')}</tbody></table>`;
+        <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}${t.bank ? `<div class="dim small">${icon('landmark')} ${esc(t.bank.bank_name)} · ${esc(t.bank.account_number)}</div>` : ''}</td></tr>`).join('')}</tbody></table>`;
   }
 
   function renderBottom() {
@@ -374,13 +420,14 @@
   }));
   $('#wForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!S.user.has_bank) return goBank('Add your bank account first');
     try {
       await withBusy($('#wBtn'), () => api(`/api/wallet/${wMode}`, { method: 'POST', body: { amount: $('#wAmount').value, note: $('#wNote').value } }));
       toast(wMode === 'deposit' ? 'Deposit requested — pending admin approval' : 'Withdrawal requested — funds on hold until processed');
       $('#wAmount').value = ''; $('#wNote').value = '';
       await Promise.all([refreshUser(), loadTx()]);
       renderWallet();
-    } catch (err) { toast(err.message, 'err'); }
+    } catch (err) { if (err.code === 'BANK_REQUIRED') goBank(err.message); else toast(err.message, 'err'); }
   });
   function renderWallet() { $('#wTx').innerHTML = txTable(S.tx); }
 
@@ -458,6 +505,10 @@
     for (const o of S.active) seen.add(`${o.id}:${o.status}`);
     if (live) live.close();
     live = TV.poll({ tick: onTick, status: (ok) => $('#liveDot').classList.toggle('on', ok) });
+    if (!S.user.has_bank && !sessionStorage.getItem('tv_bank_prompted')) {
+      sessionStorage.setItem('tv_bank_prompted', '1');
+      goBank('Add your bank account to start trading');
+    }
     pollUpdates();
   }
   boot();
