@@ -61,6 +61,7 @@
   }
   window.addEventListener('hashchange', showView);
   window.addEventListener('tv:lang', () => { if (S.user) { showView(); renderBottom(); } });
+  window.addEventListener('tv:theme', () => { if (S.user && chart) renderChartLines(); });
 
   // ---------------- data ----------------
   // ---------------- system settings ----------------
@@ -410,9 +411,9 @@
     const m = mkt();
     const lines = [];
     for (const o of S.active.filter((x) => x.market_id === m.id)) {
-      if (o.status === 'pending') { lines.push({ price: o.limit_price, color: '#ffc04d', label: `Limit ${o.side}` }); continue; }
-      lines.push({ price: o.entry_price, color: o.side === 'long' ? '#19e37d' : '#ff4d63', label: `${o.side === 'long' ? 'Long' : 'Short'} ${o.leverage}x` });
-      if (o.tp) lines.push({ price: o.tp, color: '#5cb8ff', label: 'TP' });
+      if (o.status === 'pending') { lines.push({ price: o.limit_price, color: THEME.css('--amber'), label: `Limit ${o.side}` }); continue; }
+      lines.push({ price: o.entry_price, color: THEME.css(o.side === 'long' ? '--green' : '--red'), label: `${o.side === 'long' ? 'Long' : 'Short'} ${o.leverage}x` });
+      if (o.tp) lines.push({ price: o.tp, color: THEME.css('--blue'), label: 'TP' });
       if (o.sl) lines.push({ price: o.sl, color: '#ff9f43', label: 'SL' });
     }
     chart.setLines(lines);

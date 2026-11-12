@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TradeV Admin</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23061513'/><path d='M16 5l9 3.5v7c0 6-4 9.5-9 11-5-1.5-9-5-9-11v-7z' stroke='%235cb8ff' stroke-width='2.5' fill='none'/></svg>" />
+  <meta name="theme-color" content="#061513" />
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
   <style>
@@ -42,7 +44,7 @@
   <div id="auth" class="auth-wrap hidden">
     <div class="card auth-card">
       <div class="brand">trade<span class="x">V</span> <small>ADMIN</small></div>
-      <div class="lang-row"><div data-lang-switch></div></div>
+      <div class="lang-row"><div data-lang-switch></div><button data-theme-switch></button></div>
       <p class="lead">Back office sign in</p>
       <form id="authForm">
         <label class="field"><span>Email</span><input class="input" name="email" type="email" required autocomplete="username" /></label>
@@ -64,7 +66,7 @@
       <button class="nav-item" data-view="settings"></button>
       <a class="nav-item" href="/" id="toApp"></a>
       <div class="spacer"></div>
-      <div class="lang-nav"><div data-lang-switch></div></div>
+      <div class="lang-nav"><div data-lang-switch></div><button data-theme-switch></button></div>
       <div class="userbox">
         <div class="who" id="uName"></div>
         <div class="email" id="uEmail"></div>
@@ -73,7 +75,7 @@
     </aside>
     <header class="mobile-top">
       <div class="brand">trade<span class="x">V</span> <small>ADMIN</small></div>
-      <div data-lang-switch></div>
+      <div class="top-tools"><div data-lang-switch></div><button data-theme-switch></button></div>
     </header>
     <main class="main" id="main"></main>
   </div>

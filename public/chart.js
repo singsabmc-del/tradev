@@ -14,10 +14,21 @@ class CandleChart {
     this.canvas.style.cssText = 'width:100%;height:100%;display:block;cursor:crosshair';
     container.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d');
-    this.colors = { up: '#19e37d', down: '#ff4d63', grid: 'rgba(160,255,220,0.06)', text: '#7f9c93', cross: 'rgba(232,243,239,0.35)', vol: 'rgba(160,190,180,0.22)' };
+    this.readColors();
+    window.addEventListener('tv:theme', () => { this.readColors(); this.draw(); });
     new ResizeObserver(() => this.resize()).observe(container);
     this.bind();
     this.resize();
+  }
+
+  // Colours come from the page's CSS variables, so the chart follows daylight / dark mode.
+  readColors() {
+    const v = (n, d) => (window.THEME ? THEME.css(n) : '') || d;
+    this.colors = {
+      up: v('--green', '#19e37d'), down: v('--red', '#ff4d63'), grid: v('--chart-grid', 'rgba(160,255,220,0.06)'),
+      text: v('--chart-text', '#7f9c93'), cross: v('--chart-cross', 'rgba(232,243,239,0.35)'), vol: v('--chart-vol', 'rgba(160,190,180,0.22)'),
+      tag: v('--chart-tag', '#2a3f3a'), tagText: v('--chart-tag-text', '#e8f3ef'), legend: v('--text', '#c6d8d2'),
+    };
   }
 
   bind() {
@@ -165,8 +176,8 @@ class CandleChart {
       ctx.beginPath(); ctx.moveTo(xx, 0); ctx.lineTo(xx, plotH); ctx.moveTo(0, m.y + 0.5); ctx.lineTo(plotW, m.y + 0.5); ctx.stroke(); ctx.setLineDash([]);
       const p = hi - (m.y - top) / (bottom - top) * (hi - lo);
       if (m.y < bottom + 4) {
-        ctx.fillStyle = '#2a3f3a'; ctx.fillRect(plotW + 2, m.y - 10, axisW - 4, 20);
-        ctx.fillStyle = '#e8f3ef'; ctx.textBaseline = 'middle'; ctx.fillText(this.fmt(p), plotW + 8, m.y);
+        ctx.fillStyle = this.colors.tag; ctx.fillRect(plotW + 2, m.y - 10, axisW - 4, 20);
+        ctx.fillStyle = this.colors.tagText; ctx.textBaseline = 'middle'; ctx.fillText(this.fmt(p), plotW + 8, m.y);
       }
       if (c) {
         const col = c.c >= c.o ? this.colors.up : this.colors.down;
@@ -176,7 +187,7 @@ class CandleChart {
         ctx.textBaseline = 'top';
         for (const [k, v] of parts) {
           if (k) { ctx.fillStyle = this.colors.text; ctx.fillText(k, x, 8); x += ctx.measureText(k).width + 4; }
-          ctx.fillStyle = k ? col : '#c6d8d2'; ctx.fillText(v, x, 8); x += ctx.measureText(v).width + 12;
+          ctx.fillStyle = k ? col : this.colors.legend; ctx.fillText(v, x, 8); x += ctx.measureText(v).width + 12;
         }
       }
     }

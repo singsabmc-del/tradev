@@ -132,6 +132,7 @@ const I18N = (() => {
     "Enter the account holder's name": 'กรุณาใส่ชื่อบัญชี', 'Enter a valid account number (6–34 letters or digits)': 'กรุณาใส่เลขที่บัญชีที่ถูกต้อง (6–34 ตัวอักษรหรือตัวเลข)',
     'Bank': 'ธนาคาร', 'No bank account': 'ไม่มีบัญชีธนาคาร', 'Remove bank account?': 'ลบบัญชีธนาคาร?',
     'The customer will not be able to deposit, withdraw or trade until they add one again.': 'ลูกค้าจะไม่สามารถฝาก ถอน หรือเทรดได้จนกว่าจะเพิ่มบัญชีใหม่',
+    'Daylight mode': 'โหมดกลางวัน', 'Dark mode': 'โหมดกลางคืน',
     // system settings
     'Settings': 'ตั้งค่า', 'System settings': 'ตั้งค่าระบบ', 'General': 'ทั่วไป', 'Site name': 'ชื่อเว็บไซต์',
     'Announcement (shown to customers; leave empty to hide)': 'ประกาศ (แสดงให้ลูกค้าเห็น เว้นว่างเพื่อซ่อน)',

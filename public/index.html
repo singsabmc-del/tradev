@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TradeV — Trade</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23061513'/><path d='M7 21l6-6 4 4 8-9' stroke='%2319e37d' stroke-width='3' fill='none'/></svg>" />
+  <meta name="theme-color" content="#061513" />
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/trade.css" />
   <link rel="stylesheet" href="/icons.css" />
@@ -14,7 +16,7 @@
   <div id="auth" class="auth-wrap hidden">
     <div class="card auth-card">
       <div class="brand">trade<span class="x">V</span></div>
-      <div class="lang-row"><div data-lang-switch></div></div>
+      <div class="lang-row"><div data-lang-switch></div><button data-theme-switch></button></div>
       <p class="lead" id="authLead">Sign in to start trading</p>
       <div class="announce hidden"></div>
       <div class="seg full mb"><button data-auth="login" class="active">Log in</button><button data-auth="register">Create account</button></div>
@@ -39,7 +41,7 @@
       <button class="nav-item" data-view="wallet"></button>
       <a class="nav-item hidden" id="adminLink" href="/admin"></a>
       <div class="spacer"></div>
-      <div class="lang-nav"><div data-lang-switch></div></div>
+      <div class="lang-nav"><div data-lang-switch></div><button data-theme-switch></button></div>
       <div class="userbox">
         <div class="who" id="uName"></div>
         <div class="email" id="uEmail"></div>
@@ -52,7 +54,7 @@
 
     <header class="mobile-top">
       <div class="brand">trade<span class="x">V</span></div>
-      <div data-lang-switch></div>
+      <div class="top-tools"><div data-lang-switch></div><button data-theme-switch></button></div>
     </header>
     <main class="main">
       <div class="announce hidden"></div>
