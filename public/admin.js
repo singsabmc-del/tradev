@@ -66,25 +66,59 @@
       <td class="r">${isOpen ? `<button class="btn btn-sm btn-ghost-red btn-icon" data-fclose="${o.id}">${icon('circle-x')}<span>Force close</span></button>` : o.status === 'pending' ? `<button class="btn btn-sm" data-fcancel="${o.id}">Cancel</button>` : ''}</td></tr>`;
     }).join('')}</tbody></table>`;
   }
+  const txCache = new Map();
   function txTable(rows, { showUser = true } = {}) {
+    rows.forEach((t) => txCache.set(String(t.id), t));
     if (!rows.length) return '<div class="empty">No transactions match</div>';
     return `<table class="tbl"><thead><tr><th>#</th><th>Time</th>${showUser ? '<th>Customer</th>' : ''}<th>Type</th><th class="r">Amount</th><th class="r">Balance after</th><th>Status</th><th>Note</th><th></th></tr></thead><tbody>
     ${rows.map((t) => `<tr><td class="dim">${t.id}</td><td class="muted">${time(t.created_at)}</td>
       ${showUser ? `<td><a href="#" data-user="${t.user_id}">${esc(t.user_name || t.user_email)}</a><div class="dim small">${esc(t.user_email)}</div></td>` : ''}
       <td>${badge(t.type)}</td><td class="r num ${cls(t.amount)}">${signed(t.amount)}</td>
-      <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}${t.bank ? `<div class="bank-tx">${icon('landmark')}<span>${esc(t.bank.bank_name)} · ${esc(t.bank.account_name)} · <b class="num">${esc(t.bank.account_number)}</b></span></div>` : ''}</td>
+      <td class="r num">${t.status === 'pending' ? '—' : fmt(t.balance_after)}</td><td>${badge(t.status)}</td><td class="muted">${esc(t.note || '')}${t.admin_note ? `<div class="small"><span>Admin:</span> ${esc(t.admin_note)}</div>` : ''}${t.bank ? `<div class="bank-tx">${icon('landmark')}<span>${esc(t.bank.bank_name)} · ${esc(t.bank.account_name)} · <b class="num">${esc(t.bank.account_number)}</b></span></div>` : ''}</td>
       <td class="r">${t.status === 'pending' ? `<button class="btn btn-sm btn-ghost-green btn-icon" data-approve="${t.id}">${icon('check')}<span>Approve</span></button> <button class="btn btn-sm btn-ghost-red btn-icon" data-reject="${t.id}">${icon('x')}<span>Reject</span></button>` : ''}</td></tr>`).join('')}</tbody></table>`;
   }
+  // Review a pending deposit / withdrawal before approving or rejecting it. Resolves true when processed.
+  function reviewTx(id, initial) {
+    const t = txCache.get(String(id));
+    if (!t) return Promise.resolve(false);
+    const dep = t.type === 'deposit';
+    const amt = Math.abs(t.amount);
+    return new Promise((resolve) => {
+      let done = false;
+      const close = modal(`<h2 class="row">${icon(dep ? 'arrow-down-to-line' : 'arrow-up-from-line')}<span>${dep ? 'Deposit request' : 'Withdrawal request'}</span> <span class="dim">#${t.id}</span></h2>
+        <div class="review">
+          <div class="review-amt num ${dep ? 'up' : 'down'}">${dep ? '+' : '−'}${fmt(amt)} <small>USDT</small></div>
+          <div class="kv"><span>Customer</span><b>${esc(t.user_name || '—')}</b></div>
+          <div class="kv"><span>Email</span><span>${esc(t.user_email || '—')}</span></div>
+          <div class="kv"><span>Requested</span><span>${time(t.created_at)}</span></div>
+          ${t.note ? `<div class="kv"><span>Customer note</span><span>${esc(t.note)}</span></div>` : ''}
+          ${t.bank ? `<div class="bank-line"><span class="dim small">${dep ? 'Customer bank (check the transfer came from here)' : 'Pay to'}</span><b>${esc(t.bank.bank_name)}</b><span>${esc(t.bank.account_name)}</span><span class="num big-num">${esc(t.bank.account_number)}</span></div>` : ''}
+          <p class="hint">${dep ? 'Approve only after the money has arrived in your account. Approving credits the customer balance.' : 'Approve after you have paid the customer. Rejecting returns the amount to their balance.'}</p>
+          <label class="field"><span>Reason / reference (rejection reasons are sent to the customer)</span><input class="input" id="rvNote" maxlength="200" /></label>
+        </div>
+        <div class="actions"><button type="button" class="btn" data-close>Cancel</button>
+          <button type="button" class="btn btn-ghost-red btn-icon" data-act="reject">${icon('x')}<span>Reject</span></button>
+          <button type="button" class="btn btn-green btn-icon" data-act="approve">${icon('check')}<span>Approve</span></button></div>`, (m) => {
+        const btn = m.querySelector(`[data-act="${initial}"]`); if (btn) btn.focus();
+        m.querySelectorAll('[data-act]').forEach((x) => x.addEventListener('click', async () => {
+          const act = x.dataset.act;
+          try {
+            await withBusy(x, () => api(`/api/admin/transactions/${t.id}/${act}`, { method: 'POST', body: { note: m.querySelector('#rvNote').value } }));
+            toast(`${dep ? 'Deposit' : 'Withdrawal'} #${t.id} ${act === 'approve' ? 'approved' : 'rejected'}`);
+            done = true; close(); resolve(true);
+          } catch (e) { toast(e.message, 'err'); }
+        }));
+        new MutationObserver((_, obs) => { if (!document.body.contains(m)) { obs.disconnect(); if (!done) resolve(false); } }).observe(document.body, { childList: true });
+      });
+    });
+  }
+
   // Wire actions inside a container; `after` reloads the current data.
   function wire(el, after) {
     el.querySelectorAll('[data-user]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); openCustomer(+a.dataset.user); }));
     el.querySelectorAll('[data-approve],[data-reject]').forEach((b) => b.addEventListener('click', async () => {
-      const approve = !!b.dataset.approve;
       const id = b.dataset.approve || b.dataset.reject;
-      if (!(await confirmBox(`${approve ? 'Approve' : 'Reject'} transaction #${id}?`, approve ? 'Deposits are credited to the customer balance. Withdrawals are marked as paid out.' : 'Deposits are discarded. Withdrawals are refunded to the customer balance.', { okText: approve ? 'Approve' : 'Reject', danger: !approve }))) return;
-      try { await api(`/api/admin/transactions/${id}/${approve ? 'approve' : 'reject'}`, { method: 'POST' }); toast(`Transaction #${id} ${approve ? 'approved' : 'rejected'}`); }
-      catch (e) { toast(e.message, 'err'); }
-      after(); loadBadges();
+      if (await reviewTx(id, b.dataset.approve ? 'approve' : 'reject')) { after(); loadBadges(); }
     }));
     el.querySelectorAll('[data-fclose]').forEach((b) => b.addEventListener('click', async () => {
       if (!(await confirmBox(`Force close position #${b.dataset.fclose}?`, 'It will be settled at the current market price.', { okText: 'Close position', danger: true }))) return;
@@ -335,6 +369,8 @@
           <div class="grid2"><label class="field"><span>Status</span><select class="input" name="status">${opts([['active', 'Active'], ['suspended', 'Suspended']], u.status)}</select></label>
           <label class="field"><span>Role</span><select class="input" name="role">${opts([['customer', 'Customer'], ['admin', 'Admin']], u.role)}</select></label></div>
           <label class="field"><span>New password (leave blank to keep)</span><input class="input" name="password" type="text" autocomplete="off" /></label>
+          ${u.demo ? '' : `<div class="row between mb wcode-line"><span class="small">${icon('shield-check')} <span>Withdrawal code</span>: ${u.has_withdraw_code ? `<b class="up">Set</b> <span class="dim">${time(u.withdraw_code_set_at)}</span>` : '<b class="dim">Not set</b>'}</span>
+            ${u.has_withdraw_code ? '<button type="button" class="btn btn-sm btn-ghost-red" id="wcReset">Reset code</button>' : ''}</div>`}
           <button class="btn btn-green" id="pSave">Save profile</button></form>
         <form class="card card-pad" id="bf"><h3>Balance</h3>
           <div class="seg full mb" id="bMode">${u.demo ? '' : '<button type="button" data-m="deposit" class="active">Deposit</button><button type="button" data-m="withdraw">Withdraw</button>'}<button type="button" data-m="adjust" ${u.demo ? 'class="active"' : ''}>Adjust</button></div>
@@ -380,6 +416,11 @@
       try { await api(`/api/admin/users/${id}`, { method: 'PATCH', body: { bank: null } }); toast('Bank account removed'); openCustomer(id); refreshList(); }
       catch (err) { toast(err.message, 'err'); }
     });
+    if ($('#wcReset')) $('#wcReset').onclick = async () => {
+      if (!(await confirmBox('Reset withdrawal code?', 'Only do this after confirming the customer\'s identity. They will have to set a new code before withdrawing, and they are notified.', { okText: 'Reset code', danger: true }))) return;
+      try { await api(`/api/admin/users/${id}`, { method: 'PATCH', body: { reset_withdraw_code: true } }); toast('Withdrawal code reset'); openCustomer(id); }
+      catch (err) { toast(err.message, 'err'); }
+    };
     $('#bMsg').onclick = () => { S.notifyTo = u.email; closeDrawer(); if (location.hash === '#notifications') route(); else location.hash = 'notifications'; };
     const BMODES = {
       deposit: ['Money the customer paid you (cash, bank transfer). Recorded as a completed deposit.', 'Deposit', 'Deposit recorded'],
@@ -527,6 +568,7 @@
       ${sec('banknote', 'Deposits & withdrawals', `
         ${tog('deposits_enabled', 'Deposits enabled')}
         ${tog('withdrawals_enabled', 'Withdrawals enabled')}
+        ${tog('require_withdrawal_code', 'Require withdrawal code', 'Customers set a 6-digit code and must enter it for every withdrawal')}
         <div class="grid2 mt">${fld('min_deposit', 'Minimum deposit (USDT)', st.min_deposit, 'inputmode="decimal"', 'num')}${fld('max_deposit', 'Maximum deposit (0 = no limit)', st.max_deposit, 'inputmode="decimal"', 'num')}</div>
         <div class="grid2">${fld('min_withdrawal', 'Minimum withdrawal (USDT)', st.min_withdrawal, 'inputmode="decimal"', 'num')}${fld('max_withdrawal', 'Maximum withdrawal (0 = no limit)', st.max_withdrawal, 'inputmode="decimal"', 'num')}</div>`)}
       ${sec('landmark', 'Company deposit account', `

@@ -75,6 +75,9 @@ before(async () => {
   // customers must have a bank account before deposits, withdrawals and trading
   const b = await call('/api/me/bank', { method: 'PUT', token: alice, body: { bank_name: 'Kasikornbank', account_name: 'Alice Test', account_number: '123-4-56789-0' } });
   assert.equal(b.status, 200, JSON.stringify(b.data));
+  // and a withdrawal code before withdrawing
+  const c = await call('/api/me/withdraw-code', { method: 'PUT', token: alice, body: { password: 'alicepass1', code: '482915' } });
+  assert.equal(c.status, 200, JSON.stringify(c.data));
 });
 
 after(() => {
@@ -177,7 +180,7 @@ test('validation: insufficient balance, bad leverage, wrong-side TP', async () =
 
 test('wallet: withdrawal is held then refunded on reject; deposit credited on approve', async () => {
   const b0 = (await me(alice)).balance;
-  const w = (await call('/api/wallet/withdraw', { method: 'POST', token: alice, body: { amount: 100 } })).data;
+  const w = (await call('/api/wallet/withdraw', { method: 'POST', token: alice, body: { amount: 100, code: '482915' } })).data;
   assert.equal(w.status, 'pending');
   assert.equal((await me(alice)).balance, Math.round((b0 - 100) * 100) / 100);
   const rej = await call(`/api/admin/transactions/${w.id}/reject`, { method: 'POST', token: admin });
@@ -447,7 +450,7 @@ test('no bank account: deposit, withdrawal and trading are refused with BANK_REQ
 });
 
 test('withdrawals record the bank account; admin sees full details and can edit or remove them', async () => {
-  const w = (await call('/api/wallet/withdraw', { method: 'POST', token: alice, body: { amount: 5 } })).data;
+  const w = (await call('/api/wallet/withdraw', { method: 'POST', token: alice, body: { amount: 5, code: '482915' } })).data;
   assert.equal(w.bank.account_number, '1234567890');
   const mine = (await call('/api/transactions', { token: alice })).data.find((t) => t.id === w.id);
   assert.equal(mine.bank.account_number, '•••• 7890', 'masked in the customer view');
@@ -682,4 +685,37 @@ test('admin deposits and withdraws on behalf of a customer', async () => {
   const demo = (await call('/api/auth/demo', { method: 'POST' })).data.user;
   assert.equal((await call(`/api/admin/users/${demo.id}/deposit`, { method: 'POST', token: admin, body: { amount: 10 } })).status, 400, 'no real money on demo accounts');
   await call(`/api/admin/users/${me.id}/withdraw`, { method: 'POST', token: admin, body: { amount: 150, notify: false } });
+});
+
+test('withdrawal code: required, set with the account password, checked on every withdrawal, lockout, admin reset', async () => {
+  const bob = (await call('/api/auth/login', { method: 'POST', body: { email: 'bob@test.io', password: 'bobpass12' } })).data.token;
+  assert.equal((await call('/api/me', { token: bob })).data.has_withdraw_code, false);
+  assert.equal((await call('/api/wallet/withdraw', { method: 'POST', token: bob, body: { amount: 5 } })).data.code, 'WITHDRAW_CODE_REQUIRED');
+  assert.equal((await call('/api/me/withdraw-code', { method: 'PUT', token: bob, body: { password: 'wrong', code: '582013' } })).status, 400);
+  assert.equal((await call('/api/me/withdraw-code', { method: 'PUT', token: bob, body: { password: 'bobpass12', code: '12345' } })).status, 400);
+  assert.equal((await call('/api/me/withdraw-code', { method: 'PUT', token: bob, body: { password: 'bobpass12', code: '123456' } })).status, 400, 'obvious codes refused');
+  const set = await call('/api/me/withdraw-code', { method: 'PUT', token: bob, body: { password: 'bobpass12', code: '582013' } });
+  assert.equal(set.status, 200);
+  assert.equal(set.data.has_withdraw_code, true);
+  assert.equal(set.data.withdraw_code_hash, undefined, 'hash never leaves the server');
+
+  assert.equal((await call('/api/wallet/withdraw', { method: 'POST', token: bob, body: { amount: 5, code: '000001' } })).data.code, 'WITHDRAW_CODE_WRONG');
+  const ok = await call('/api/wallet/withdraw', { method: 'POST', token: bob, body: { amount: 5, code: '582013' } });
+  assert.equal(ok.status, 200);
+  await call(`/api/admin/transactions/${ok.data.id}/reject`, { method: 'POST', token: admin, body: { note: 'Name on account does not match' } });
+  const rejected = (await call('/api/transactions', { token: bob })).data.find((t) => t.id === ok.data.id);
+  assert.equal(rejected.admin_note, 'Name on account does not match');
+  assert.equal(rejected.note, 'Withdrawal request', 'customer note kept');
+  assert.match((await call('/api/notifications', { token: bob })).data.items[0].body, /Name on account does not match/);
+
+  for (let i = 0; i < 4; i++) await call('/api/wallet/withdraw', { method: 'POST', token: bob, body: { amount: 5, code: '999999' } });
+  assert.equal((await call('/api/wallet/withdraw', { method: 'POST', token: bob, body: { amount: 5, code: '582013' } })).data.code, 'WITHDRAW_CODE_LOCKED', 'locked after 5 wrong codes');
+
+  const me = (await call('/api/me', { token: bob })).data;
+  const admView = (await call(`/api/admin/users?q=bob@test.io`, { token: admin })).data[0];
+  assert.equal(admView.has_withdraw_code, true);
+  assert.equal(admView.withdraw_code_hash, undefined);
+  await call(`/api/admin/users/${me.id}`, { method: 'PATCH', token: admin, body: { reset_withdraw_code: true } });
+  assert.equal((await call('/api/me', { token: bob })).data.has_withdraw_code, false);
+  assert.equal((await call('/api/notifications', { token: bob })).data.items[0].title, 'Withdrawal code reset');
 });

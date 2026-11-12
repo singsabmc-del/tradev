@@ -137,8 +137,12 @@
         <div class="bank-line"><b>${esc(b.bank_name)}</b><span>${esc(b.account_name)}</span><span class="num big-num">${esc(b.account_number)}</span></div>
         ${b.instructions ? `<p class="muted small">${esc(b.instructions)}</p>` : ''}</div>`;
     } else if (!dep && S.user && S.user.bank) html = `<p class="muted small">${icon('landmark')} <span>Paid to</span> ${esc(S.user.bank.bank_name)} · ${esc(S.user.bank.account_number)}</p>`;
+    const needCode = !dep && enabled && S.user && !S.user.has_withdraw_code && st.require_withdrawal_code !== false;
+    if (needCode) html += `<a href="#account" class="bank-needed">${icon('shield-check')}<span>Set a withdrawal code on the Account page first</span></a>`;
+    $('#wCodeField').classList.toggle('hidden', dep || !(S.user && S.user.has_withdraw_code));
+    $('#wCode').required = !dep && Boolean(S.user && S.user.has_withdraw_code);
     $('#walletInfo').innerHTML = html + (limits && enabled ? `<p class="dim small">${limits} USDT</p>` : '');
-    $('#wForm').classList.toggle('locked', !enabled || needBank());
+    $('#wForm').classList.toggle('locked', !enabled || needBank() || needCode);
   }
 
   async function refreshUser() {
@@ -503,12 +507,16 @@
     e.preventDefault();
     if (needBank()) return goBank('Add your bank account first');
     try {
-      await withBusy($('#wBtn'), () => api(`/api/wallet/${wMode}`, { method: 'POST', body: { amount: $('#wAmount').value, note: $('#wNote').value } }));
+      await withBusy($('#wBtn'), () => api(`/api/wallet/${wMode}`, { method: 'POST', body: { amount: $('#wAmount').value, note: $('#wNote').value, code: wMode === 'withdraw' ? $('#wCode').value : undefined } }));
       toast(wMode === 'deposit' ? 'Deposit requested — pending admin approval' : 'Withdrawal requested — funds on hold until processed');
-      $('#wAmount').value = ''; $('#wNote').value = '';
+      $('#wAmount').value = ''; $('#wNote').value = ''; $('#wCode').value = '';
       await Promise.all([refreshUser(), loadTx()]);
       renderWallet();
-    } catch (err) { if (err.code === 'BANK_REQUIRED') goBank(err.message); else toast(err.message, 'err'); }
+    } catch (err) {
+      if (err.code === 'BANK_REQUIRED') goBank(err.message);
+      else if (err.code === 'WITHDRAW_CODE_REQUIRED') { toast(err.message, 'warn'); location.hash = 'account'; }
+      else { toast(err.message, 'err'); if (err.code === 'WITHDRAW_CODE_WRONG') { $('#wCode').value = ''; $('#wCode').focus(); } }
+    }
   });
   function renderWallet() { $('#wTx').innerHTML = txTable(S.tx); }
 
@@ -576,7 +584,21 @@
     if (!u || !f) return;
     for (const k of ['name', 'phone', 'birth_date', 'country', 'address']) f[k].value = u[k] || '';
     $('#profEmail').value = u.demo ? '—' : u.email;
+    $('#wcStatus').innerHTML = u.has_withdraw_code
+      ? `${icon('circle-check')} <span>Your code is set.</span> <span class="dim">You need it for every withdrawal. Enter a new one below to change it.</span>`
+      : `<span>Set a 6-digit code. You will be asked for it every time you withdraw, so nobody else can take money out even if they get into your account.</span>`;
+    $('#wcSave').textContent = u.has_withdraw_code ? 'Change code' : 'Save code';
   }
+  $('#wcForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const b = Object.fromEntries(new FormData(e.target));
+    if (!/^\d{6}$/.test(b.code)) { toast('The withdrawal code must be 6 digits', 'err'); return; }
+    if (b.code !== b.repeat) { toast('The codes do not match', 'err'); return; }
+    try {
+      await withBusy($('#wcSave'), () => api('/api/me/withdraw-code', { method: 'PUT', body: { code: b.code, password: b.password } }));
+      toast('Withdrawal code saved'); e.target.reset(); await refreshUser(); renderAccount(); renderWalletMode();
+    } catch (err) { toast(err.message, 'err'); }
+  });
   $('#profForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     try {

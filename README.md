@@ -18,7 +18,7 @@ back office to manage markets, customers, transactions and win/lose order histor
 - Automatic TP / SL / liquidation and limit-order fills, with notifications
 - Positions with live PnL, open orders, trade history with **win / lose** result, transactions
 - Portfolio (equity, realized & open PnL, win rate) and wallet (deposit / withdrawal requests)
-- **Account** page: name, phone, date of birth, country, address, change password
+- **Account** page: name, phone, date of birth, country, address, change password, 6-digit **withdrawal code** (required for every withdrawal, locked after 5 wrong tries)
 - **Notifications** bell with unread dot and pop-ups; **daylight / dark mode**; English / Thai
 
 **Admin panel** (`/admin`)
@@ -27,7 +27,7 @@ back office to manage markets, customers, transactions and win/lose order histor
 - **Customers:** search by name, email or phone; full profile (phone, date of birth, country, address, internal note) & stats; edit, reset password, suspend, **deposit / withdraw on the customer's behalf**, credit/debit adjustments (customer is notified), bank account, every order and transaction; Real / Demo filter
 - **Notifications:** send a message to one customer or everyone; deposits, withdrawals and balance adjustments notify automatically
 - **Settings:** site name, announcement, support contact, registration / trading / demo switches, bank-account requirement, deposit & withdrawal limits, company deposit account
-- **Transactions:** all money movements; approve or reject pending deposits and withdrawals
+- **Transactions:** all money movements; review each pending deposit or withdrawal (customer, amount, bank details) and approve or reject it with a reason that is sent to the customer
 - **Orders:** every order filtered by status, **win / lose**, market and side; force-close positions, cancel pending orders
 
 ## 1. Set up the database

@@ -194,6 +194,7 @@
             <form id="wForm" class="mt real-only">
               <label class="field"><span>Amount (USDT)</span><input class="input num" id="wAmount" inputmode="decimal" required /></label>
               <label class="field"><span>Note (optional)</span><input class="input" id="wNote" maxlength="80" placeholder="e.g. bank transfer ref" /></label>
+              <label class="field hidden" id="wCodeField"><span>Withdrawal code</span><input class="input num code-input" id="wCode" type="password" inputmode="numeric" maxlength="6" pattern="\d{6}" autocomplete="one-time-code" placeholder="••••••" /></label>
               <button class="btn btn-green btn-block" id="wBtn">Request deposit</button>
             </form>
             <p class="small muted lbl hidden" id="supportLine"></p>
@@ -221,6 +222,15 @@
             <p class="dim small real-only">You can log in with your email or phone number. To change your email, contact support.</p>
             <button class="btn btn-green" id="profSave">Save changes</button>
           </form>
+          <div class="account-side">
+          <form class="card card-pad real-only" id="wcForm">
+            <h3 class="lbl"><i data-icon="shield-check"></i>Withdrawal code</h3>
+            <p class="muted small" id="wcStatus"></p>
+            <label class="field"><span>New 6-digit code</span><input class="input num code-input" name="code" type="password" inputmode="numeric" maxlength="6" pattern="\d{6}" required autocomplete="new-password" placeholder="••••••" /></label>
+            <label class="field"><span>Repeat code</span><input class="input num code-input" name="repeat" type="password" inputmode="numeric" maxlength="6" pattern="\d{6}" required autocomplete="new-password" placeholder="••••••" /></label>
+            <label class="field"><span>Account password (to confirm it's you)</span><input class="input" name="password" type="password" required autocomplete="current-password" /></label>
+            <button class="btn btn-green" id="wcSave">Save code</button>
+          </form>
           <form class="card card-pad real-only" id="pwForm">
             <h3 class="lbl"><i data-icon="lock"></i>Change password</h3>
             <label class="field"><span>Current password</span><input class="input" name="current_password" type="password" required autocomplete="current-password" /></label>
@@ -228,6 +238,7 @@
             <label class="field"><span>Repeat new password</span><input class="input" name="repeat" type="password" minlength="8" required autocomplete="new-password" /></label>
             <button class="btn btn-green" id="pwSave">Update password</button>
           </form>
+          </div>
         </div>
       </section>
     </main>
