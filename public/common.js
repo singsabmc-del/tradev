@@ -105,7 +105,7 @@ const TV = (() => {
   const ICONS = {
     trade: icon('chart-candlestick'), markets: icon('chart-line'), portfolio: icon('chart-pie'), wallet: icon('wallet'),
     dashboard: icon('layout-dashboard'), users: icon('users'), tx: icon('arrow-left-right'), orders: icon('receipt-text'),
-    admin: icon('shield-check'), logout: icon('log-out'), settings: icon('settings'), notify: icon('bell'),
+    admin: icon('shield-check'), logout: icon('log-out'), settings: icon('settings'), notify: icon('bell'), account: icon('user-round'),
   };
 
   return { api, store, fmt, money, signed, pct, cls, time, esc, badge, toast, modal, confirmBox, poll, withBusy, ICONS };

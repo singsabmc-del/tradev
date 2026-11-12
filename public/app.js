@@ -21,9 +21,15 @@
   $$('[data-auth]').forEach((b) => b.addEventListener('click', () => {
     authMode = b.dataset.auth;
     $$('[data-auth]').forEach((x) => x.classList.toggle('active', x === b));
-    $('#nameField').classList.toggle('hidden', authMode === 'login');
-    $('#authBtn').textContent = authMode === 'login' ? 'Log in' : 'Create account';
-    $('#authLead').textContent = authMode === 'login' ? 'Sign in to start trading' : 'Open a demo account in seconds';
+    const login = authMode === 'login';
+    $('#nameField').classList.toggle('hidden', login);
+    $('#loginField').classList.toggle('hidden', !login);
+    $('#emailField').classList.toggle('hidden', login);
+    $('#phoneField').classList.toggle('hidden', login);
+    $('[name=login]').required = login;
+    $('#emailField input').required = !login;
+    $('#authBtn').textContent = login ? 'Log in' : 'Create account';
+    $('#authLead').textContent = login ? 'Sign in to start trading' : 'Create your account in seconds';
     $('#authErr').textContent = '';
   }));
   $('#authForm').addEventListener('submit', async (e) => {
@@ -67,7 +73,7 @@
   window.addEventListener('tv:logout', () => location.reload());
 
   // ---------------- navigation ----------------
-  const NAV = { trade: ['trade', 'Trade'], markets: ['markets', 'Markets'], portfolio: ['portfolio', 'Portfolio'], wallet: ['wallet', 'Wallet'] };
+  const NAV = { trade: ['trade', 'Trade'], markets: ['markets', 'Markets'], portfolio: ['portfolio', 'Portfolio'], wallet: ['wallet', 'Wallet'], account: ['account', 'Account'] };
   for (const [v, [icon, label]] of Object.entries(NAV)) {
     const b = $(`[data-view="${v}"]`);
     b.innerHTML = `${ICONS[icon]}<span>${label}</span>`;
@@ -82,6 +88,7 @@
     if (S.view === 'markets') renderMarkets();
     if (S.view === 'portfolio') loadHistory().then(renderPortfolio);
     if (S.view === 'wallet') loadTx().then(renderWallet);
+    if (S.view === 'account') renderAccount();
     if (S.view === 'trade' && chart) chart.resize();
   }
   window.addEventListener('hashchange', showView);
@@ -562,6 +569,30 @@
     } catch { /* offline: try again later */ }
     updatesTimer = setTimeout(pollUpdates, document.hidden ? 15000 : 3000);
   }
+
+  // ---------------- account ----------------
+  function renderAccount() {
+    const u = S.user, f = $('#profForm');
+    if (!u || !f) return;
+    for (const k of ['name', 'phone', 'birth_date', 'country', 'address']) f[k].value = u[k] || '';
+    $('#profEmail').value = u.demo ? '—' : u.email;
+  }
+  $('#profForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await withBusy($('#profSave'), () => api('/api/me/profile', { method: 'PUT', body: Object.fromEntries(new FormData(e.target)) }));
+      toast('Profile saved'); await refreshUser(); renderAccount();
+    } catch (err) { toast(err.message, 'err'); }
+  });
+  $('#pwForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const b = Object.fromEntries(new FormData(e.target));
+    if (b.new_password !== b.repeat) { toast('The new passwords do not match', 'err'); return; }
+    try {
+      await withBusy($('#pwSave'), () => api('/api/me/password', { method: 'POST', body: { current_password: b.current_password, new_password: b.new_password } }));
+      toast('Password updated'); e.target.reset();
+    } catch (err) { toast(err.message, 'err'); }
+  });
 
   // ---------------- notifications ----------------
   const NOTE_ICON = { info: 'info', success: 'circle-check', warning: 'triangle-exclamation-point', alert: 'octagon-exclamation-point' };

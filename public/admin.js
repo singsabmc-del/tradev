@@ -261,7 +261,7 @@
   // ---------- customers ----------
   async function viewCustomers() {
     main.innerHTML = title('Customers') + `<div class="toolbar">
-      <label class="search">${icon('search')}<input class="input" id="q" placeholder="Search name or email…" /></label>
+      <label class="search">${icon('search')}<input class="input" id="q" placeholder="Search name, email or phone…" /></label>
       <select class="input" id="fRole">${opts([['', 'All roles'], ['customer', 'Customers'], ['admin', 'Admins']], 'customer')}</select>
       <select class="input" id="fStatus">${opts([['', 'Any status'], ['active', 'Active'], ['suspended', 'Suspended']])}</select>
       <select class="input" id="fKind">${opts([['', 'Real & demo'], ['real', 'Real accounts'], ['demo', 'Demo accounts']], 'real')}</select>
@@ -279,8 +279,8 @@
     const qs = new URLSearchParams({ q: $('#q').value, role: $('#fRole').value, status: $('#fStatus').value, kind: $('#fKind').value });
     const users = await api(`/api/admin/users?${qs}`);
     if (!$('#uTable')) return;
-    $('#uTable').innerHTML = users.length ? `<table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th class="r">Balance</th><th class="r">Trades</th><th class="r">Win / Lose</th><th class="r">Win rate</th><th class="r">Total PnL</th><th class="r">Open</th><th>Bank</th><th>Status</th><th>Joined</th><th>Last login</th></tr></thead><tbody>
-      ${users.map((u) => `<tr class="clickable" data-uid="${u.id}"><td class="dim">${u.id}</td><td><b>${esc(u.name)}</b> ${u.role === 'admin' ? badge('admin') : ''}${u.demo ? badge('demo') : ''}</td><td class="muted">${esc(u.email)}</td>
+    $('#uTable').innerHTML = users.length ? `<table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th class="r">Balance</th><th class="r">Trades</th><th class="r">Win / Lose</th><th class="r">Win rate</th><th class="r">Total PnL</th><th class="r">Open</th><th>Bank</th><th>Status</th><th>Joined</th><th>Last login</th></tr></thead><tbody>
+      ${users.map((u) => `<tr class="clickable" data-uid="${u.id}"><td class="dim">${u.id}</td><td><b>${esc(u.name)}</b> ${u.role === 'admin' ? badge('admin') : ''}${u.demo ? badge('demo') : ''}</td><td class="muted">${esc(u.email)}</td><td class="muted num">${esc(u.phone || '—')}</td>
         <td class="r num">${fmt(u.balance)}</td><td class="r num">${u.trades}</td><td class="r num"><span class="up">${u.wins}</span> / <span class="down">${u.losses}</span></td>
         <td class="r num">${u.wins + u.losses ? `${((u.wins / (u.wins + u.losses)) * 100).toFixed(0)}%` : '—'}</td>
         <td class="r num ${cls(u.total_pnl)}">${signed(u.total_pnl)}</td><td class="r num">${u.open_positions}</td><td>${u.demo ? '<span class="dim">—</span>' : u.has_bank ? `<span class="up" title="${esc(u.bank.bank_name)}">${icon('circle-check')}</span>` : `<span class="down" title="No bank account">${icon('circle-exclamation-point')}</span>`}</td><td>${badge(u.status)}</td>
@@ -291,16 +291,14 @@
     modal(`<h2>Add customer</h2><form id="af">
       <label class="field"><span>Full name</span><input class="input" name="name" required /></label>
       <label class="field"><span>Email</span><input class="input" name="email" type="email" required /></label>
+      <label class="field"><span>Phone (optional, can be used to log in)</span><input class="input" name="phone" type="tel" placeholder="+66 81 234 5678" /></label>
       <label class="field"><span>Temporary password</span><input class="input" name="password" minlength="8" required /></label>
       <div class="actions"><button type="button" class="btn" data-close>Cancel</button><button class="btn btn-green" id="aSave">Create</button></div></form>`, (el, close) => {
       $('#af', el).addEventListener('submit', async (e) => {
         e.preventDefault();
         try {
-          // register through the public endpoint without touching the admin session
-          const res = await fetch('/api/auth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error);
-          toast(`Customer ${data.user.email} created`); close(); loadUsers();
+          const data = await withBusy($('#aSave', el), () => api('/api/admin/users', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }));
+          toast(`Customer ${data.email} created`); close(); loadUsers();
         } catch (err) { toast(err.message, 'err'); }
       });
     });
@@ -329,6 +327,11 @@
         <form class="card card-pad" id="pf"><h3>Profile</h3>
           <div class="grid2"><label class="field"><span>Name</span><input class="input" name="name" value="${esc(u.name)}" /></label>
           <label class="field"><span>Email</span><input class="input" name="email" value="${esc(u.email)}" /></label></div>
+          <div class="grid2"><label class="field"><span>Phone (login)</span><input class="input" name="phone" type="tel" value="${esc(u.phone || '')}" placeholder="+66 81 234 5678" /></label>
+          <label class="field"><span>Date of birth</span><input class="input" name="birth_date" type="date" value="${esc(u.birth_date || '')}" /></label></div>
+          <div class="grid2"><label class="field"><span>Country</span><input class="input" name="country" value="${esc(u.country || '')}" maxlength="60" /></label>
+          <label class="field"><span>Address</span><input class="input" name="address" value="${esc(u.address || '')}" maxlength="300" /></label></div>
+          <label class="field"><span>Internal note (only admins see this)</span><textarea class="input" name="admin_note" rows="2" maxlength="1000">${esc(u.admin_note || '')}</textarea></label>
           <div class="grid2"><label class="field"><span>Status</span><select class="input" name="status">${opts([['active', 'Active'], ['suspended', 'Suspended']], u.status)}</select></label>
           <label class="field"><span>Role</span><select class="input" name="role">${opts([['customer', 'Customer'], ['admin', 'Admin']], u.role)}</select></label></div>
           <label class="field"><span>New password (leave blank to keep)</span><input class="input" name="password" type="text" autocomplete="off" /></label>

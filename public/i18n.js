@@ -133,6 +133,17 @@ const I18N = (() => {
     'Bank': 'ธนาคาร', 'No bank account': 'ไม่มีบัญชีธนาคาร', 'Remove bank account?': 'ลบบัญชีธนาคาร?',
     'The customer will not be able to deposit, withdraw or trade until they add one again.': 'ลูกค้าจะไม่สามารถฝาก ถอน หรือเทรดได้จนกว่าจะเพิ่มบัญชีใหม่',
     'Daylight mode': 'โหมดกลางวัน', 'Dark mode': 'โหมดกลางคืน',
+    // account & phone login
+    'Account': 'บัญชี', 'Personal information': 'ข้อมูลส่วนตัว', 'Phone number': 'เบอร์โทรศัพท์', 'Date of birth': 'วันเกิด', 'Country': 'ประเทศ', 'Address': 'ที่อยู่',
+    'You can log in with your email or phone number. To change your email, contact support.': 'คุณเข้าสู่ระบบได้ด้วยอีเมลหรือเบอร์โทรศัพท์ หากต้องการเปลี่ยนอีเมล โปรดติดต่อฝ่ายบริการ',
+    'Save changes': 'บันทึกการเปลี่ยนแปลง', 'Change password': 'เปลี่ยนรหัสผ่าน', 'Current password': 'รหัสผ่านปัจจุบัน', 'New password': 'รหัสผ่านใหม่',
+    'Repeat new password': 'ยืนยันรหัสผ่านใหม่', 'Update password': 'อัปเดตรหัสผ่าน', 'Password updated': 'อัปเดตรหัสผ่านแล้ว', 'Profile saved': 'บันทึกโปรไฟล์แล้ว',
+    'The new passwords do not match': 'รหัสผ่านใหม่ไม่ตรงกัน', 'Current password is wrong': 'รหัสผ่านปัจจุบันไม่ถูกต้อง',
+    'Email or phone number': 'อีเมลหรือเบอร์โทรศัพท์', 'Phone number (optional, lets you log in with it)': 'เบอร์โทรศัพท์ (ไม่บังคับ ใช้เข้าสู่ระบบได้)',
+    'Wrong phone number or password': 'เบอร์โทรศัพท์หรือรหัสผ่านไม่ถูกต้อง', 'That phone number is already registered': 'เบอร์โทรศัพท์นี้ถูกใช้ลงทะเบียนแล้ว',
+    'Enter a valid phone number': 'กรอกเบอร์โทรศัพท์ให้ถูกต้อง', 'Enter a valid date of birth': 'กรอกวันเกิดให้ถูกต้อง', 'Create your account in seconds': 'สร้างบัญชีได้ในไม่กี่วินาที',
+    'Phone': 'โทรศัพท์', 'Phone (login)': 'โทรศัพท์ (ใช้เข้าสู่ระบบ)', 'Phone (optional, can be used to log in)': 'โทรศัพท์ (ไม่บังคับ ใช้เข้าสู่ระบบได้)',
+    'Internal note (only admins see this)': 'บันทึกภายใน (เห็นเฉพาะผู้ดูแล)', 'Search name, email or phone…': 'ค้นหาชื่อ อีเมล หรือเบอร์โทร…',
     // demo accounts
     'Try a demo account': 'ทดลองใช้บัญชีเดโม', 'or': 'หรือ', 'DEMO': 'เดโม', 'Demo': 'เดโม', 'Demo account': 'บัญชีเดโม',
     'virtual funds for practice. Nothing here is real money.': 'เงินเสมือนสำหรับฝึกเทรด ไม่ใช่เงินจริง',

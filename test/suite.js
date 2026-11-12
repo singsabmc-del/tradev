@@ -600,3 +600,56 @@ test('demo accounts: one click, virtual funds, trade without a bank, no real mon
   assert.equal((await call('/api/auth/demo', { method: 'POST' })).status, 403);
   await call('/api/admin/settings', { method: 'PUT', token: admin, body: { demo_enabled: true } });
 });
+
+test('customer information: self-service profile, password change, phone login, admin edits and internal note', async () => {
+  const phone = `+66 8${String(Date.now()).slice(-8)}`;
+  const reg = await call('/api/auth/register', { method: 'POST', body: { name: 'Chai', email: `chai${Date.now()}@x.com`, password: 'chaipass1', phone } });
+  assert.equal(reg.status, 200);
+  const tok = reg.data.token;
+  assert.equal(reg.data.user.phone, phone);
+
+  // log in with the phone, typed differently
+  const digits = phone.replace(/\D/g, '');
+  const byPhone = await call('/api/auth/login', { method: 'POST', body: { login: digits, password: 'chaipass1' } });
+  assert.equal(byPhone.status, 200);
+  const local = `0${phone.replace(/\D/g, '').slice(2)}`; // +66 8xxxxxxxx written the Thai way: 08xxxxxxxx
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { login: local, password: 'chaipass1' } })).status, 200, 'local format matches the international one');
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { login: phone, password: 'wrong-pass' } })).data.error, 'Wrong phone number or password');
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { email: reg.data.user.email, password: 'chaipass1' } })).status, 200, 'old clients still send email');
+
+  // the same phone cannot be registered twice
+  const dup = await call('/api/auth/register', { method: 'POST', body: { name: 'X', email: `x${Date.now()}@x.com`, password: 'xxxxxxxx', phone: digits } });
+  assert.equal(dup.status, 400);
+
+  // self-service profile
+  assert.equal((await call('/api/me/profile', { method: 'PUT', token: tok, body: { phone: 'abc' } })).status, 400);
+  assert.equal((await call('/api/me/profile', { method: 'PUT', token: tok, body: { birth_date: '2999-01-01' } })).status, 400);
+  const newPhone = `08${String(Date.now() + 7).slice(-8)}`;
+  const prof = await call('/api/me/profile', { method: 'PUT', token: tok, body: { name: 'Chai Dee', phone: newPhone, birth_date: '1990-05-17', country: 'Thailand', address: '1 Sukhumvit Rd, Bangkok' } });
+  assert.equal(prof.status, 200);
+  assert.equal(prof.data.birth_date, '1990-05-17');
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { login: phone, password: 'chaipass1' } })).status, 401, 'old phone released');
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { login: newPhone, password: 'chaipass1' } })).status, 200);
+
+  // password change
+  assert.equal((await call('/api/me/password', { method: 'POST', token: tok, body: { current_password: 'nope', new_password: 'newpass12' } })).status, 400);
+  assert.equal((await call('/api/me/password', { method: 'POST', token: tok, body: { current_password: 'chaipass1', new_password: 'newpass12' } })).status, 200);
+  assert.equal((await call('/api/auth/login', { method: 'POST', body: { login: newPhone, password: 'newpass12' } })).status, 200);
+
+  // admin: edit everything, internal note hidden from the customer, search by phone
+  const id = reg.data.user.id;
+  const ed = await call(`/api/admin/users/${id}`, { method: 'PATCH', token: admin, body: { country: 'Cambodia', admin_note: 'VIP, called on 12 Nov' } });
+  assert.equal(ed.data.admin_note, 'VIP, called on 12 Nov');
+  assert.equal(ed.data.country, 'Cambodia');
+  const me = (await call('/api/me', { token: tok })).data;
+  assert.equal(me.admin_note, undefined);
+  assert.equal(me.country, 'Cambodia');
+  assert.equal((await call(`/api/admin/users?q=${newPhone.slice(-6)}`, { token: admin })).data[0].id, id);
+
+  // admin can add a customer (with phone) even when registration is closed
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { registration_open: false } });
+  const add = await call('/api/admin/users', { method: 'POST', token: admin, body: { name: 'Walk In', email: `walkin${Date.now()}@x.com`, password: 'walkin123', phone: `09${String(Date.now() + 3).slice(-8)}` } });
+  assert.equal(add.status, 200);
+  assert.equal((await call('/api/admin/users', { method: 'POST', token: alice, body: { name: 'x' } })).status, 403);
+  await call('/api/admin/settings', { method: 'PUT', token: admin, body: { registration_open: true } });
+});

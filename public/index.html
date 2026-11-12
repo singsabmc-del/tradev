@@ -23,7 +23,9 @@
       <p class="muted small center hidden" id="regClosed">New registrations are currently closed.</p>
       <form id="authForm" autocomplete="on">
         <label class="field hidden" id="nameField"><span>Full name</span><input class="input" name="name" autocomplete="name" /></label>
-        <label class="field"><span>Email</span><input class="input" name="email" type="email" required autocomplete="email" /></label>
+        <label class="field" id="loginField"><span>Email or phone number</span><input class="input" name="login" required autocomplete="username" /></label>
+        <label class="field hidden" id="emailField"><span>Email</span><input class="input" name="email" type="email" autocomplete="email" /></label>
+        <label class="field hidden" id="phoneField"><span>Phone number (optional, lets you log in with it)</span><input class="input" name="phone" type="tel" autocomplete="tel" placeholder="+66 81 234 5678" /></label>
         <label class="field"><span>Password</span><input class="input" name="password" type="password" required minlength="8" autocomplete="current-password" /></label>
         <div class="err-msg" id="authErr"></div>
         <button class="btn btn-green btn-block" id="authBtn">Log in</button>
@@ -44,6 +46,7 @@
       <button class="nav-item" data-view="markets"></button>
       <button class="nav-item" data-view="portfolio"></button>
       <button class="nav-item" data-view="wallet"></button>
+      <button class="nav-item" data-view="account"></button>
       <a class="nav-item hidden" id="adminLink" href="/admin"></a>
       <div class="spacer"></div>
       <div class="lang-nav"><div data-lang-switch></div><button data-theme-switch></button><button class="btn btn-icon bell-btn" data-notif-btn title="Notifications" aria-label="Notifications"><i data-icon="bell"></i><span class="bell-dot hidden"></span></button></div>
@@ -197,6 +200,34 @@
           </div>
           </div>
           <div class="card"><div class="card-pad"><h3>Transactions</h3></div><div class="table-wrap" id="wTx"></div></div>
+        </div>
+      </section>
+      <!-- ACCOUNT -->
+      <section id="view-account" class="view hidden">
+        <h1 class="page-title">Account</h1>
+        <div class="account-grid">
+          <form class="card card-pad" id="profForm">
+            <h3 class="lbl"><i data-icon="user-round"></i>Personal information</h3>
+            <label class="field"><span>Full name</span><input class="input" name="name" maxlength="80" required autocomplete="name" /></label>
+            <div class="grid2">
+              <label class="field"><span>Email</span><input class="input" id="profEmail" disabled /></label>
+              <label class="field"><span>Phone number</span><input class="input" name="phone" type="tel" autocomplete="tel" placeholder="+66 81 234 5678" /></label>
+            </div>
+            <div class="grid2">
+              <label class="field"><span>Date of birth</span><input class="input" name="birth_date" type="date" /></label>
+              <label class="field"><span>Country</span><input class="input" name="country" maxlength="60" autocomplete="country-name" /></label>
+            </div>
+            <label class="field"><span>Address</span><textarea class="input" name="address" rows="2" maxlength="300" autocomplete="street-address"></textarea></label>
+            <p class="dim small real-only">You can log in with your email or phone number. To change your email, contact support.</p>
+            <button class="btn btn-green" id="profSave">Save changes</button>
+          </form>
+          <form class="card card-pad real-only" id="pwForm">
+            <h3 class="lbl"><i data-icon="lock"></i>Change password</h3>
+            <label class="field"><span>Current password</span><input class="input" name="current_password" type="password" required autocomplete="current-password" /></label>
+            <label class="field"><span>New password</span><input class="input" name="new_password" type="password" minlength="8" required autocomplete="new-password" /></label>
+            <label class="field"><span>Repeat new password</span><input class="input" name="repeat" type="password" minlength="8" required autocomplete="new-password" /></label>
+            <button class="btn btn-green" id="pwSave">Update password</button>
+          </form>
         </div>
       </section>
     </main>

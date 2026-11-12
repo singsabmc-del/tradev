@@ -11,17 +11,22 @@ back office to manage markets, customers, transactions and win/lose order histor
 ## Features
 
 **Trader app** (`/`)
-- Sign up / log in (demo balance on signup, configurable)
+- Sign up / log in with **email or phone number** (local or international format, e.g. `081 234 5678` = `+66 81 234 5678`)
+- **Demo account**: one click on the sign-in screen, virtual funds for practice, no bank account, no deposits or withdrawals
 - Live candlestick chart (1m / 5m / 15m / 1h, zoom & pan) with entry / TP / SL / limit lines
 - Market & limit orders, long or short, adjustable leverage, take-profit and stop-loss
 - Automatic TP / SL / liquidation and limit-order fills, with notifications
 - Positions with live PnL, open orders, trade history with **win / lose** result, transactions
 - Portfolio (equity, realized & open PnL, win rate) and wallet (deposit / withdrawal requests)
+- **Account** page: name, phone, date of birth, country, address, change password
+- **Notifications** bell with unread dot and pop-ups; **daylight / dark mode**; English / Thai
 
 **Admin panel** (`/admin`)
 - **Dashboard:** customers, balances, open positions, live unrealized PnL, win/lose & win rate, fees, house result, volume, per-market breakdown, Google Sheets sync status
 - **Markets:** create markets, edit price / volatility / trend (drift) / max leverage / fees / min margin, enable or disable
-- **Customers:** search, full profile & stats, edit name/email/role/status, reset password, suspend, credit/debit balance, every order and transaction
+- **Customers:** search by name, email or phone; full profile (phone, date of birth, country, address, internal note) & stats; edit, reset password, suspend, credit/debit balance (customer is notified), bank account, every order and transaction; Real / Demo filter
+- **Notifications:** send a message to one customer or everyone; deposits, withdrawals and balance adjustments notify automatically
+- **Settings:** site name, announcement, support contact, registration / trading / demo switches, bank-account requirement, deposit & withdrawal limits, company deposit account
 - **Transactions:** all money movements; approve or reject pending deposits and withdrawals
 - **Orders:** every order filtered by status, **win / lose**, market and side; force-close positions, cancel pending orders
 
