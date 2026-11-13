@@ -170,7 +170,7 @@
       renderSheets(s.sheets);
     };
     await load().catch((e) => toast(e.message, 'err'));
-    refreshTimer = setInterval(() => { if (TV.isLive()) load().catch(() => {}); }, 15_000);
+    refreshTimer = setInterval(() => { if (TV.isLive()) load().catch(() => {}); }, 60_000); // each refresh reads every customer
   }
 
   function renderSheets(st) {
@@ -490,7 +490,7 @@
     };
     for (const id of ['oStatus', 'oResult', 'oSymbol', 'oSide']) $(`#${id}`).addEventListener('change', load);
     await load();
-    refreshTimer = setInterval(() => { if (TV.isLive() && !$('.overlay')) load().catch(() => {}); }, 20_000);
+    refreshTimer = setInterval(() => { if (TV.isLive() && !$('.overlay')) load().catch(() => {}); }, 60_000);
   }
 
   // ---------- notifications ----------
@@ -668,7 +668,7 @@
     $('#uName').textContent = S.me.name; $('#uEmail').textContent = S.me.email;
     route();
     loadBadges();
-    setInterval(() => { if (TV.isLive()) loadBadges(); }, 30_000);
+    setInterval(() => { if (TV.isLive()) loadBadges(); }, 60_000);
     TV.poll({ tick: onTick }, { every: 3000 });
   }
   boot();

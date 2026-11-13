@@ -60,7 +60,7 @@ before(async () => {
     FIRESTORE_EMULATOR_HOST: `127.0.0.1:${MOCK_PORT}`, FIREBASE_PROJECT_ID: 'demo-tradev', FIREBASE_SERVICE_ACCOUNT: '', FEED_ALLOW_HTTP: '1',
     FEED_URL_BINANCE: `${EX}/binance`, FEED_URL_BYBIT: `${EX}/bybit`, FEED_URL_OKX: `${EX}/okx`, FEED_URL_COINBASE: `${EX}/coinbase`, FEED_URL_KRAKEN: `${EX}/kraken`,
     JWT_SECRET: 'test-secret', ADMIN_EMAIL: 'admin@test.io', ADMIN_PASSWORD: 'AdminPass123', PORT: port, STARTING_BALANCE: '1000',
-    CRON_SECRET: 'cron-secret', LOCAL_TICK_MS: '0', ADVANCE_MIN_SECONDS: '1',
+    CRON_SECRET: 'cron-secret', LOCAL_TICK_MS: '0', ADVANCE_MIN_SECONDS: '1', ORDER_CHECK_SECONDS: '1', MARKETS_REV_SECONDS: '1',
     SHEETS_WEBHOOK_URL: `http://127.0.0.1:${SHEET_PORT}/exec`, SHEETS_SECRET: 'sheet-secret', SHEETS_SYNC_SECONDS: '1', SHEETS_INCLUDE_STATS: 'true',
   });
   // Two independent app instances on the same database = two serverless instances.
@@ -271,15 +271,20 @@ test('Google Sheets sync sends public market data only, never customer data', as
   assert.equal((await call('/api/admin/sheets/sync', { method: 'POST', token: alice })).status, 403);
 });
 
-// Simulate "nobody touched this market for N minutes" (and the order having been opened then).
-async function backdate({ orderId, marketId, minutes, price }) {
-  const at = { timestampValue: new Date(Date.now() - minutes * 60_000).toISOString() };
+// Simulate "nobody touched this market for N minutes": its price path (a segment) and the order both
+// start N minutes ago. Written straight to the database, then the markets revision is bumped so every
+// instance reloads.
+async function backdate({ orderId, marketId, minutes, price, drift = 0 }) {
+  const ms = Math.floor((Date.now() - minutes * 60_000) / 1000) * 1000;
+  const at = { timestampValue: new Date(ms).toISOString() };
   const root = 'projects/demo-tradev/databases/(default)/documents';
+  const seg = { mapValue: { fields: { t0: { integerValue: String(ms) }, p0: { doubleValue: price }, vol: { doubleValue: 0 }, drift: { doubleValue: drift }, seed: { integerValue: '7' } } } };
   const res = await fetch(`http://127.0.0.1:${MOCK_PORT}/v1/${root}:commit`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ writes: [
       { update: { name: `${root}/orders/${fkey(orderId)}`, fields: { opened_at: at, created_at: at } }, updateMask: { fieldPaths: ['opened_at', 'created_at'] } },
-      { update: { name: `${root}/markets/${fkey(marketId)}`, fields: { last_tick_at: at, price: { doubleValue: price } } }, updateMask: { fieldPaths: ['last_tick_at', 'price'] } },
+      { update: { name: `${root}/markets/${fkey(marketId)}`, fields: { segs: { arrayValue: { values: [seg] } }, updated_at: { timestampValue: new Date().toISOString() } } }, updateMask: { fieldPaths: ['segs', 'updated_at'] } },
+      { update: { name: `${root}/app_state/markets_rev`, fields: { key: { stringValue: 'markets_rev' }, rev: { integerValue: String(Date.now()) } } } },
     ] }),
   });
   assert.equal(res.status, 200, await res.text());
@@ -305,7 +310,7 @@ test('catch-up: a TP that hit while nobody was online settles at its price and t
   const o = (await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'BNB/USDT', side: 'long', type: 'market', margin: 10, leverage: 2, tp: 525 } })).data;
   assert.equal(o.entry_price, 500);
   // Pretend the order was opened 10 minutes ago and no request has touched the market since.
-  await backdate({ orderId: o.id, marketId: id, minutes: 10, price: 500 });
+  await backdate({ orderId: o.id, marketId: id, minutes: 10, price: 500, drift: 0.0005 });
   await sleep(1100); // let the instance's 1s market cache expire (a real idle gap is much longer)
   const hist = (await call('/api/orders?scope=history', { token: alice })).data; // first request after the gap
   const c = hist.find((x) => x.id === o.id);
@@ -322,7 +327,7 @@ test('catch-up: a TP that hit while nobody was online settles at its price and t
 test('two instances advancing the same market at once never double-settle', async () => {
   const id = await setMarket('SOL/USDT', { price: 100, volatility: 0, drift: 0.0005 });
   const o = (await call('/api/orders', { method: 'POST', token: alice, body: { symbol: 'SOL/USDT', side: 'short', type: 'market', margin: 10, leverage: 5, sl: 103 } })).data;
-  await backdate({ orderId: o.id, marketId: id, minutes: 5, price: 100 });
+  await backdate({ orderId: o.id, marketId: id, minutes: 5, price: 100, drift: 0.0005 });
   await sleep(1100);
   const other = `http://127.0.0.1:${APP_PORT + 1}`;
   await Promise.all(Array.from({ length: 12 }, (_, i) => fetch((i % 2 ? other : URL_) + '/api/ticker')));

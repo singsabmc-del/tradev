@@ -42,7 +42,7 @@ async function main() {
   }
   await bootstrap();
   if (config.localTickMs > 0) {
-    setInterval(() => { engine.advanceAll().then(() => sheets.maybeSync()).catch((e) => console.error(e.message)); }, config.localTickMs);
+    setInterval(() => { engine.settleDue({ force: true }).then(() => sheets.maybeSync()).catch((e) => console.error(e.message)); }, config.localTickMs);
   }
   server.listen(config.port, () => {
     console.log(`TradeV running → http://localhost:${config.port}   (admin: http://localhost:${config.port}/admin)`);

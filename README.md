@@ -69,14 +69,13 @@ Browser ──poll /api/ticker (CDN-cached 1s)──▶ Vercel Function (api/ind
                                                          └── Google Sheets (optional, public prices)
 ```
 
-- **Catch-up market engine** (`lib/engine.js`). There is no always-running process. Each market stores its
-  price at `last_tick_at`; any request advances it to "now", simulating the missed seconds (random walk using
-  the admin's volatility and drift), filling in the 1-minute candles, and walking every open order along that
-  path. TP / SL / liquidation / limit fills are settled **at their trigger price and at the moment they were
-  hit**, even if the site was closed. Each advance is committed atomically in a Firestore transaction
-  with `last_tick_at` as an optimistic lock, so parallel function instances never
-  double-apply a tick or double-settle an order. Markets are saved at most every 5 seconds
-  (`ADVANCE_MIN_SECONDS`) to keep reads/writes low — see [costs](firebase/README.md#costs--ថ្លៃចំណាយ).
+- **Computed prices.** A simulated market's price is a pure function of a few stored numbers (start time, start
+  price, volatility, drift, random seed): every second takes a seeded random step, so any server instance computes
+  the same price and candles at any moment without storing ticks. Admin changes start a new segment. Live
+  markets read the exchange (cached in memory). Active orders are walked along that path and TP / SL /
+  liquidation / limit fills are settled **at their trigger price and at the second they were hit**, even if the
+  site was closed — in a transaction that re-checks each order, so parallel instances never double-settle.
+  The database is written only when money moves — see [costs](firebase/README.md#costs--ថ្លៃចំណាយ).
 - **Live updates by polling.** Pages poll `/api/ticker` (CDN-cached for 1 second, so many viewers cost about
   one function run per second) and `/api/updates` for their own fills / TP / SL notifications.
 - **Security.** The browser never talks to the database: Firestore rules deny all client access and only the

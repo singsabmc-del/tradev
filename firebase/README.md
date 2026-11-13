@@ -31,14 +31,21 @@ Base64 of the file also works: `base64 -w0 key.json` (macOS: `base64 -i key.json
 On first request TradeV creates the admin account (`ADMIN_EMAIL` / `ADMIN_PASSWORD`), the 6 default markets and their chart history.
 
 ## Costs / ថ្លៃចំណាយ
-Firestore bills per document read/write. Its free quota is **50,000 reads and 20,000 writes per day**.
-Measured with one trading page open continuously: about **350 reads and 125 writes per minute**, so the free
-quota covers about **2½ hours a day** of continuous viewing. Beyond that (Blaze plan), a page open 24/7 costs
-roughly **US$8–9 per month** at list prices. When nobody has the site open, TradeV uses nothing; markets catch up
-on the next visit.
+Firestore bills per document read/write. Its free quota is **50,000 reads and 20,000 writes per day**; when it
+runs out, every request fails with "Database error" until the quota resets at midnight Pacific time
+(15:00 in Thailand / Cambodia).
 
-To use less, raise `ADVANCE_MIN_SECONDS` (default 5 on Firestore): prices on screen update less often, but
-TP / SL / liquidations are still settled at the exact price and time.
+Prices are **computed, not stored**, so watching the site writes nothing. Measured with one trading page open
+continuously: about **20 reads per minute and no writes** (≈ 29,000 reads a day), well inside the free quota.
+Writes happen only when money moves: orders, fills, TP / SL / liquidations, deposits, withdrawals.
+Pages also stop polling while their tab is hidden or after 10 minutes without use.
+
+Settings that trade freshness for fewer reads:
+- `ORDER_CHECK_SECONDS` (default 10): how often active orders are checked. TP / SL / liquidation are still
+  settled at the exact price and second they were hit; this only changes how soon the customer sees it.
+- `MARKETS_REV_SECONDS` (default 10): how soon other server instances notice an admin's market change.
+
+For heavier traffic switch the Firebase project to the **Blaze** (pay-as-you-go) plan and set a budget alert.
 
 ## Data layout / រចនាសម្ព័ន្ធទិន្នន័យ
 | Collection | Contents |
