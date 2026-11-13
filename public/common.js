@@ -72,27 +72,57 @@ const TV = (() => {
     });
   }
 
-  // Live prices by polling /api/ticker (works on serverless hosts; the CDN caches it for 1s).
-  // Slows down while the tab is hidden.
-  function poll(handlers, { every = 1500, hiddenEvery = 10000 } = {}) {
-    let timer = null, stopped = false, busy = false;
+  // ---- activity gate: no polling in hidden tabs, and pause after a while without any interaction ----
+  // Every poll costs database reads on the server, so a tab left open (or in the background) must go quiet.
+  const IDLE_MS = 10 * 60 * 1000;
+  let lastActive = Date.now(), pausedBar = null;
+  const resumeFns = new Set();
+  const isLive = () => !document.hidden && Date.now() - lastActive < IDLE_MS;
+  function wake() {
+    const wasIdle = Date.now() - lastActive >= IDLE_MS;
+    lastActive = Date.now();
+    if (pausedBar) { pausedBar.remove(); pausedBar = null; }
+    if (wasIdle || !document.hidden) resumeFns.forEach((fn) => fn());
+  }
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((ev) => window.addEventListener(ev, () => {
+    if (Date.now() - lastActive >= IDLE_MS) wake(); else lastActive = Date.now();
+  }, { passive: true, capture: true }));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+  function showPaused() {
+    if (pausedBar || document.hidden) return;
+    pausedBar = document.createElement('button');
+    pausedBar.className = 'paused-bar';
+    pausedBar.innerHTML = `${window.icon ? icon('circle-pause') : ''}<span>Live updates paused while you were away.</span><b>Tap to resume</b>`;
+    pausedBar.addEventListener('click', wake);
+    document.body.appendChild(pausedBar);
+  }
+  // Run fn now and then every `every` ms, but only while the tab is visible and in use.
+  function liveLoop(fn, every) {
+    let timer = null;
     const run = async () => {
-      if (stopped) return;
-      if (!busy) {
-        busy = true;
-        try {
-          const res = await fetch('/api/ticker');
-          if (!res.ok) throw new Error(res.status);
-          handlers.tick && handlers.tick(await res.json());
-          handlers.status && handlers.status(true);
-        } catch { handlers.status && handlers.status(false); }
-        busy = false;
-      }
-      timer = setTimeout(run, document.hidden ? hiddenEvery : every);
+      clearTimeout(timer);
+      if (!isLive()) { if (!document.hidden) showPaused(); return; } // resumed by wake()
+      try { await fn(); } catch { /* the next run retries */ }
+      timer = setTimeout(run, typeof every === 'function' ? every() : every);
     };
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && !stopped) { clearTimeout(timer); run(); } });
+    resumeFns.add(run);
     run();
-    return { close: () => { stopped = true; clearTimeout(timer); } };
+    return { run, close: () => { clearTimeout(timer); resumeFns.delete(run); } };
+  }
+
+  // Live prices by polling /api/ticker (works on serverless hosts; the CDN caches it briefly).
+  function poll(handlers, { every = 2000 } = {}) {
+    let busy = false;
+    return liveLoop(async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const res = await fetch('/api/ticker');
+        if (!res.ok) throw new Error(res.status);
+        handlers.tick && handlers.tick(await res.json());
+        handlers.status && handlers.status(true);
+      } catch { handlers.status && handlers.status(false); } finally { busy = false; }
+    }, every);
   }
 
   async function withBusy(btn, fn) {
@@ -108,5 +138,5 @@ const TV = (() => {
     admin: icon('shield-check'), logout: icon('log-out'), settings: icon('settings'), notify: icon('bell'), account: icon('user-round'), home: icon('house'),
   };
 
-  return { api, store, fmt, money, signed, pct, cls, time, esc, badge, toast, modal, confirmBox, poll, withBusy, ICONS };
+  return { api, store, fmt, money, signed, pct, cls, time, esc, badge, toast, modal, confirmBox, poll, liveLoop, isLive, withBusy, ICONS };
 })();

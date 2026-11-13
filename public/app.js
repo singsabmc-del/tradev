@@ -610,7 +610,6 @@
   let updatesSince = Date.now();
   let updatesTimer;
   async function pollUpdates() {
-    clearTimeout(updatesTimer);
     try {
       const u = await api(`/api/updates?since=${updatesSince - 2000}`);
       updatesSince = u.t;
@@ -634,7 +633,6 @@
         if (S.view === 'portfolio') renderPortfolio();
       }
     } catch { /* offline: try again later */ }
-    updatesTimer = setTimeout(pollUpdates, document.hidden ? 15000 : 3000);
   }
 
   // ---------------- account ----------------
@@ -881,8 +879,10 @@
       goBank('Add your bank account to start trading');
     }
     setNoteDot(S.user.notify);
-    pollUpdates();
-    setInterval(loadSettings, 60_000);
+    // Order fills / balance / notifications. Prices come from the ticker; this only needs to be fairly fresh.
+    if (S.updatesLoop) S.updatesLoop.close();
+    S.updatesLoop = TV.liveLoop(pollUpdates, 8000);
+    if (!S.settingsLoop) S.settingsLoop = TV.liveLoop(() => loadSettings(), 5 * 60_000);
   }
   boot();
 })();

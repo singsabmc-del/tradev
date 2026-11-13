@@ -146,6 +146,7 @@ const I18N = (() => {
     'All': 'ทั้งหมด', '24h high / low': 'สูงสุด / ต่ำสุด 24 ชม.', '24h': '24 ชม.', 'Market': 'ตลาด', 'Last 4h': '4 ชม. ล่าสุด', 'Price · 24h': 'ราคา · 24 ชม.',
     'Theme colour': 'สีธีม', 'Buttons, menus, links and highlights in both apps. Profit / loss colours do not change. Preview is live; save to apply for everyone.': 'ปุ่ม เมนู ลิงก์ และไฮไลต์ในทั้งสองแอป สีกำไร/ขาดทุนไม่เปลี่ยน แสดงตัวอย่างทันที กดบันทึกเพื่อใช้กับทุกคน',
     'Theme colour must be a hex colour like #19e37d': 'สีธีมต้องเป็นรหัสสีแบบ #19e37d',
+    'Live updates paused while you were away.': 'หยุดอัปเดตสดชั่วคราวขณะที่คุณไม่อยู่', 'Tap to resume': 'แตะเพื่อดำเนินการต่อ',
     // home
     'Home': 'หน้าแรก', 'Welcome back': 'ยินดีต้อนรับกลับ', 'Good morning': 'สวัสดีตอนเช้า', 'Good afternoon': 'สวัสดีตอนบ่าย', 'Good evening': 'สวัสดีตอนเย็น',
     'Search markets': 'ค้นหาตลาด', 'Ranking list': 'อันดับ', 'All markets': 'ตลาดทั้งหมด', 'Gainers': 'ขึ้นมากสุด', 'Losers': 'ลงมากสุด', '24h Vol': 'วอลุ่ม 24 ชม.',
